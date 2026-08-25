@@ -1,17 +1,16 @@
-name: Build iOS IPA
+name: Build & Release iOS IPA
 
 on:
   push:
     branches: [ "main" ]
-    tags:
-      - 'v*'
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    name: Build FluxCloud IPA
+    name: Build & Release FluxCloud IPA
     runs-on: macos-14
 
     steps:
@@ -51,10 +50,19 @@ jobs:
           path: FluxCloud.ipa
           retention-days: 14
 
-      - name: Create GitHub Release (on tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: FluxCloud iOS v1.0.${{ github.run_number }}
+          body: |
+            Automated Release for FluxCloud iOS Client.
+
+            - Tag: `v1.0.${{ github.run_number }}`
+            - Commit: `${{ github.sha }}`
+
+            ### Installation
+            Download `FluxCloud.ipa` below and install it on your iOS device via AltStore, TrollStore, Sideloadly, or LiveContainer.
           files: FluxCloud.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
