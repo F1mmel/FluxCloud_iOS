@@ -78,27 +78,38 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         request.timeoutInterval = 10
         
         do {
+            var release: GitHubRelease? = nil
+            
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                DebugLogger.shared.log("GitHub API Release Check Status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
-                isChecking = false
-                return
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                release = try? JSONDecoder().decode(GitHubRelease.self, from: data)
+            } else {
+                // Fallback to /releases array endpoint
+                if let fallbackURL = URL(string: "https://api.github.com/repos/F1mmel/FluxCloud_iOS/releases") {
+                    var fallbackReq = URLRequest(url: fallbackURL)
+                    fallbackReq.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+                    fallbackReq.setValue("FluxCloud-iOS-AutoUpdater", forHTTPHeaderField: "User-Agent")
+                    let (fData, fResponse) = try await URLSession.shared.data(for: fallbackReq)
+                    if let fHttp = fResponse as? HTTPURLResponse, fHttp.statusCode == 200 {
+                        let releases = (try? JSONDecoder().decode([GitHubRelease].self, from: fData)) ?? []
+                        release = releases.first
+                    }
+                }
             }
             
-            let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
-            guard let releaseDate = release.effectiveDate else {
-                DebugLogger.shared.log("Konnte Release-Datum nicht parsen")
+            guard let latest = release, let releaseDate = latest.effectiveDate else {
+                DebugLogger.shared.log("Kein GitHub Release gefunden (404 / noch kein Release publiziert).")
                 isChecking = false
                 return
             }
             
             let localDate = referenceTimestamp
-            DebugLogger.shared.log("Neuestes Release Datum: \(release.formattedDate) | Lokaler Stand: \(DateFormatter.localizedString(from: localDate, dateStyle: .medium, timeStyle: .short))")
+            DebugLogger.shared.log("Neuestes Release Datum: \(latest.formattedDate) | Lokaler Stand: \(DateFormatter.localizedString(from: localDate, dateStyle: .medium, timeStyle: .short))")
             
             // Compare release timestamp with local app timestamp (+10s tolerance)
             if releaseDate.timeIntervalSince1970 > (localDate.timeIntervalSince1970 + 10.0) || force {
-                DebugLogger.shared.log("Neues Release gefunden! Veröffentlicht am: \(release.formattedDate)")
-                self.latestRelease = release
+                DebugLogger.shared.log("Neues Release gefunden! Veröffentlicht am: \(latest.formattedDate)")
+                self.latestRelease = latest
                 self.isUpdateAvailable = true
                 self.showUpdateSheet = true
             } else {
