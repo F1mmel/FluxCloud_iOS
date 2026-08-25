@@ -165,6 +165,14 @@ public struct FileBrowserView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Section(header: Text(authManager.config.cleanedURLString)) {
+                            Button(action: {
+                                Task {
+                                    await UpdateManager.shared.checkForUpdates(force: true)
+                                }
+                            }) {
+                                Label("Auf Updates prüfen", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            
                             Button(role: .destructive, action: {
                                 showLogoutAlert = true
                             }) {

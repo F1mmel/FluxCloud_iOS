@@ -18,6 +18,9 @@
 		AA1000092C1A000100000009 /* AuthenticatedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000092C1A000100000009 /* AuthenticatedAsyncImage.swift */; };
 		AA10000A2C1A00010000000A /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA20000A2C1A00010000000A /* ShareSheet.swift */; };
 		AA10000C2C1A00010000000C /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA20000D2C1A00010000000D /* DebugLogger.swift */; };
+		AA10000D2C1A00010000000D /* GitHubRelease.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA20000E2C1A00010000000E /* GitHubRelease.swift */; };
+		AA10000E2C1A00010000000E /* UpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA20000F2C1A00010000000F /* UpdateManager.swift */; };
+		AA10000F2C1A00010000000F /* UpdateSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000102C1A000100000010 /* UpdateSheet.swift */; };
 		AA10000B2C1A00010000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA20000B2C1A00010000000B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +32,9 @@
 		AA2000042C1A000100000004 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
 		AA2000052C1A000100000005 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		AA20000D2C1A00010000000D /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
+		AA20000E2C1A00010000000E /* GitHubRelease.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubRelease.swift; sourceTree = "<group>"; };
+		AA20000F2C1A00010000000F /* UpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateManager.swift; sourceTree = "<group>"; };
+		AA2000102C1A000100000010 /* UpdateSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSheet.swift; sourceTree = "<group>"; };
 		AA2000062C1A000100000006 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		AA2000072C1A000100000007 /* FileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserView.swift; sourceTree = "<group>"; };
 		AA2000082C1A000100000008 /* FileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailView.swift; sourceTree = "<group>"; };
@@ -75,6 +81,7 @@
 			children = (
 				AA2000022C1A000100000002 /* FileItem.swift */,
 				AA2000032C1A000100000003 /* ServerConfig.swift */,
+				AA20000E2C1A00010000000E /* GitHubRelease.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -85,6 +92,7 @@
 				AA2000042C1A000100000004 /* APIService.swift */,
 				AA2000052C1A000100000005 /* AuthManager.swift */,
 				AA20000D2C1A00010000000D /* DebugLogger.swift */,
+				AA20000F2C1A00010000000F /* UpdateManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -105,6 +113,7 @@
 			children = (
 				AA2000092C1A000100000009 /* AuthenticatedAsyncImage.swift */,
 				AA20000A2C1A00010000000A /* ShareSheet.swift */,
+				AA2000102C1A000100000010 /* UpdateSheet.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -197,6 +206,9 @@
 				AA1000092C1A000100000009 /* AuthenticatedAsyncImage.swift in Sources */,
 				AA10000A2C1A00010000000A /* ShareSheet.swift in Sources */,
 				AA10000C2C1A00010000000C /* DebugLogger.swift in Sources */,
+				AA10000D2C1A00010000000D /* GitHubRelease.swift in Sources */,
+				AA10000E2C1A00010000000E /* UpdateManager.swift in Sources */,
+				AA10000F2C1A00010000000F /* UpdateSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
