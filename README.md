@@ -27,6 +27,11 @@ It allows you to connect directly to your self-hosted FluxCloud instance over HT
 - System Share Sheet (`UIActivityViewController`) integration for exporting, saving to Files/Photos, or opening with third-party apps.
 - Direct CDN download link copying to clipboard.
 
+### In-App Auto-Updater
+- Checks for newly published GitHub Releases on app launch via release timestamps.
+- One-tap in-app download for `FluxCloud.ipa` with real-time download progress.
+- Seamless installation handoff via iOS Share Sheet, TrollStore, AltStore, or Files app.
+
 ---
 
 ## Project Structure
