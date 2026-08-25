@@ -7,6 +7,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
     
     private let kFirstStartedKey = "fluxcloud_app_first_started_timestamp"
     private let kLastInstalledReleaseDateKey = "fluxcloud_last_installed_release_timestamp"
+    private let kLastInstalledReleaseIdKey = "fluxcloud_last_installed_release_id"
     private let githubApiURL = "https://api.github.com/repos/F1mmel/FluxCloud_iOS/releases/latest"
     
     @Published public var isChecking: Bool = false
@@ -30,31 +31,37 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         initializeBaselineTimestamp()
     }
     
-    /// Initializes the baseline timestamp on first app launch
+    /// Initializes and updates the baseline timestamp from the app binary
     private func initializeBaselineTimestamp() {
+        var buildDate = Date()
+        if let execURL = Bundle.main.executableURL,
+           let attributes = try? FileManager.default.attributesOfItem(atPath: execURL.path),
+           let modDate = attributes[.modificationDate] as? Date {
+            buildDate = modDate
+        }
+        
+        let savedInstalled = UserDefaults.standard.double(forKey: kLastInstalledReleaseDateKey)
+        if buildDate.timeIntervalSince1970 > savedInstalled {
+            UserDefaults.standard.set(buildDate.timeIntervalSince1970, forKey: kLastInstalledReleaseDateKey)
+        }
         if UserDefaults.standard.object(forKey: kFirstStartedKey) == nil {
-            // Determine build date from bundle executable or use current date
-            var initialDate = Date()
-            if let execURL = Bundle.main.executableURL,
-               let attributes = try? FileManager.default.attributesOfItem(atPath: execURL.path),
-               let modDate = attributes[.modificationDate] as? Date {
-                initialDate = modDate
-            }
-            UserDefaults.standard.set(initialDate.timeIntervalSince1970, forKey: kFirstStartedKey)
-            UserDefaults.standard.set(initialDate.timeIntervalSince1970, forKey: kLastInstalledReleaseDateKey)
+            UserDefaults.standard.set(buildDate.timeIntervalSince1970, forKey: kFirstStartedKey)
         }
     }
     
     public var referenceTimestamp: Date {
+        var buildDate = Date()
+        if let execURL = Bundle.main.executableURL,
+           let attributes = try? FileManager.default.attributesOfItem(atPath: execURL.path),
+           let modDate = attributes[.modificationDate] as? Date {
+            buildDate = modDate
+        }
+        
         let ts = UserDefaults.standard.double(forKey: kLastInstalledReleaseDateKey)
         if ts > 0 {
-            return Date(timeIntervalSince1970: ts)
+            return Date(timeIntervalSince1970: max(ts, buildDate.timeIntervalSince1970))
         }
-        let firstTs = UserDefaults.standard.double(forKey: kFirstStartedKey)
-        if firstTs > 0 {
-            return Date(timeIntervalSince1970: firstTs)
-        }
-        return Date()
+        return buildDate
     }
     
     // MARK: - Check for Updates
@@ -65,7 +72,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         isChecking = true
         errorMessage = nil
         
-        DebugLogger.shared.log("Checking GitHub for new releases (timestamp comparison)...")
+        DebugLogger.shared.log("Checking GitHub for new releases...")
         
         guard let url = URL(string: githubApiURL) else {
             isChecking = false
@@ -98,16 +105,26 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
             }
             
             guard let latest = release, let releaseDate = latest.effectiveDate else {
-                DebugLogger.shared.log("No GitHub release found (404 / no release published yet).")
+                DebugLogger.shared.log("No GitHub release found.")
                 isChecking = false
                 return
             }
             
             let localDate = referenceTimestamp
-            DebugLogger.shared.log("Latest release date: \(latest.formattedDate) | Local baseline: \(DateFormatter.localizedString(from: localDate, dateStyle: .medium, timeStyle: .short))")
+            let lastInstalledId = UserDefaults.standard.integer(forKey: kLastInstalledReleaseIdKey)
             
-            // Compare release timestamp with local app timestamp (+10s tolerance)
-            if releaseDate.timeIntervalSince1970 > (localDate.timeIntervalSince1970 + 10.0) || force {
+            DebugLogger.shared.log("Latest release date: \(latest.formattedDate) | App baseline: \(DateFormatter.localizedString(from: localDate, dateStyle: .medium, timeStyle: .short))")
+            
+            // If already marked as installed ID and not force, skip
+            if !force && lastInstalledId > 0 && lastInstalledId == latest.id {
+                DebugLogger.shared.log("App is already on the latest release ID (\(latest.id)).")
+                self.isUpdateAvailable = false
+                isChecking = false
+                return
+            }
+            
+            // Compare release timestamp with local app build timestamp (+60s tolerance)
+            if releaseDate.timeIntervalSince1970 > (localDate.timeIntervalSince1970 + 60.0) || force {
                 DebugLogger.shared.log("New release available! Published on: \(latest.formattedDate)")
                 self.latestRelease = latest
                 self.isUpdateAvailable = true
@@ -128,7 +145,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
     @MainActor
     public func startDownload() {
         guard let release = latestRelease, let asset = release.ipaAsset, let downloadURL = URL(string: asset.browserDownloadUrl) else {
-            errorMessage = "No .ipa asset found in the latest release."
+            errorMessage = "Keine .ipa Datei im neuesten Release gefunden."
             return
         }
         
@@ -137,7 +154,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         errorMessage = nil
         downloadedIpaURL = nil
         
-        DebugLogger.shared.log("Starting download of FluxCloud.ipa (\(asset.formattedSize))...")
+        DebugLogger.shared.log("Downloading FluxCloud.ipa (\(asset.formattedSize))...")
         
         var request = URLRequest(url: downloadURL)
         request.setValue("FluxCloud-iOS-AutoUpdater", forHTTPHeaderField: "User-Agent")
@@ -155,8 +172,11 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
     }
     
     public func markCurrentReleaseAsInstalled() {
-        if let release = latestRelease, let releaseDate = release.effectiveDate {
-            UserDefaults.standard.set(releaseDate.timeIntervalSince1970, forKey: kLastInstalledReleaseDateKey)
+        if let release = latestRelease {
+            UserDefaults.standard.set(release.id, forKey: kLastInstalledReleaseIdKey)
+            if let releaseDate = release.effectiveDate {
+                UserDefaults.standard.set(releaseDate.timeIntervalSince1970, forKey: kLastInstalledReleaseDateKey)
+            }
             DispatchQueue.main.async {
                 self.isUpdateAvailable = false
                 self.showUpdateSheet = false
@@ -200,8 +220,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         } catch {
             DispatchQueue.main.async {
                 self.isDownloading = false
-                self.errorMessage = "Failed to save file: \(error.localizedDescription)"
-                DebugLogger.shared.log("Failed to save IPA: \(error.localizedDescription)")
+                self.errorMessage = "Fehler beim Speichern der Datei: \(error.localizedDescription)"
             }
         }
     }
@@ -211,7 +230,6 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
             DispatchQueue.main.async {
                 self.isDownloading = false
                 self.errorMessage = error.localizedDescription
-                DebugLogger.shared.log("Download failed: \(error.localizedDescription)")
             }
         }
     }

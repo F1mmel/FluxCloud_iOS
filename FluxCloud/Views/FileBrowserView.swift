@@ -101,10 +101,10 @@ public struct FileBrowserView: View {
                     categoryFilterScrollView
                 }
                 
-                // Main Content View (Always Scrollable with Pull-to-Refresh)
+                // Main Content View (Always Scrollable, Top-Aligned with Pull-to-Refresh)
                 GeometryReader { geometry in
                     ScrollView {
-                        VStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 0) {
                             if isLoading && items.isEmpty {
                                 loadingStateView(height: geometry.size.height)
                             } else if let error = errorMessage, items.isEmpty {
@@ -118,8 +118,10 @@ public struct FileBrowserView: View {
                                     listViewLayout
                                 }
                             }
+                            
+                            Spacer(minLength: 20)
                         }
-                        .frame(minHeight: geometry.size.height)
+                        .frame(minWidth: geometry.size.width, minHeight: geometry.size.height, alignment: .top)
                     }
                     .refreshable {
                         await loadFiles(isSilent: false)
@@ -187,6 +189,7 @@ public struct FileBrowserView: View {
                 }) {
                     Image(systemName: isGridView ? "list.bullet" : "square.grid.2x2")
                         .font(.system(size: 16))
+                        .foregroundColor(.blue)
                 }
                 
                 // Add / Upload Menu (+)
@@ -195,7 +198,7 @@ public struct FileBrowserView: View {
                     PhotosPicker(
                         selection: $selectedPhotoItems,
                         maxSelectionCount: 20,
-                        matching: .any(of: [.images, .videos])
+                        matching: .any(of: [.images, .videos, .livePhotos, .cinematicVideos])
                     ) {
                         Label("Fotos & Videos hochladen", systemImage: "photo.on.rectangle.angled")
                     }
@@ -318,7 +321,7 @@ public struct FileBrowserView: View {
         }
     }
     
-    // MARK: - Category Filter ScrollView
+    // MARK: - Category Filter ScrollView (Accent Color Highlight)
     
     private var categoryFilterScrollView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -336,11 +339,15 @@ public struct FileBrowserView: View {
                             .padding(.vertical, 7)
                             .background(
                                 selectedCategory == cat.0
-                                    ? Color.blue
+                                    ? Color.blue.opacity(0.18)
                                     : Color(UIColor.secondarySystemGroupedBackground)
                             )
-                            .foregroundColor(selectedCategory == cat.0 ? .white : .primary)
+                            .foregroundColor(selectedCategory == cat.0 ? Color.blue : .primary)
                             .cornerRadius(18)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18)
+                                    .stroke(selectedCategory == cat.0 ? Color.blue.opacity(0.35) : Color.clear, lineWidth: 1)
+                            )
                             .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 1)
                     }
                 }
@@ -462,6 +469,7 @@ public struct FileBrowserView: View {
                 .foregroundColor(.secondary)
             Spacer()
         }
+        .frame(maxWidth: .infinity)
         .frame(height: max(height - 100, 200))
     }
     
@@ -482,12 +490,13 @@ public struct FileBrowserView: View {
             .buttonStyle(.borderedProminent)
             Spacer()
         }
+        .frame(maxWidth: .infinity)
         .frame(height: max(height - 100, 200))
     }
     
     private func emptyStateView(height: CGFloat) -> some View {
         VStack(spacing: 16) {
-            Spacer()
+            Spacer().frame(height: 40)
             Image(systemName: searchText.isEmpty ? "folder" : "magnifyingglass")
                 .font(.system(size: 48))
                 .foregroundColor(.gray.opacity(0.4))
@@ -505,6 +514,7 @@ public struct FileBrowserView: View {
             }
             Spacer()
         }
+        .frame(maxWidth: .infinity)
         .frame(height: max(height - 100, 200))
     }
     
@@ -565,25 +575,27 @@ public struct FileBrowserView: View {
         }
     }
     
+    // MARK: - Photo & Video Upload Handler
+    
     private func handlePhotoPickerUpload(_ pickerItems: [PhotosPickerItem]) {
         isUploading = true
         uploadProgress = 0.0
-        uploadStatusText = "\(pickerItems.count) Foto(s) werden vorbereitet..."
+        uploadStatusText = "\(pickerItems.count) Element(e) werden geladen..."
         
         Task {
             var successCount = 0
             for (index, item) in pickerItems.enumerated() {
-                do {
-                    if let data = try await item.loadTransferable(type: Data.self) {
-                        let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
-                        let filename = "IMG_\(Int(Date().timeIntervalSince1970))_\(index + 1).\(ext)"
-                        let mime = item.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
-                        
-                        await MainActor.run {
-                            self.uploadStatusText = "Lade hoch (\(index + 1)/\(pickerItems.count)): \(filename)"
-                            self.uploadProgress = Double(index) / Double(pickerItems.count)
-                        }
-                        
+                await MainActor.run {
+                    self.uploadStatusText = "Verarbeite (\(index + 1)/\(pickerItems.count))..."
+                    self.uploadProgress = Double(index) / Double(pickerItems.count)
+                }
+                
+                if let (data, filename, mime) = await loadMediaItemData(from: item, index: index + 1) {
+                    await MainActor.run {
+                        self.uploadStatusText = "Lade hoch (\(index + 1)/\(pickerItems.count)): \(filename)"
+                    }
+                    
+                    do {
                         let success = try await APIService.shared.uploadFile(
                             serverUrl: authManager.config.serverUrl,
                             apiKey: authManager.config.apiKey,
@@ -593,9 +605,11 @@ public struct FileBrowserView: View {
                             mimeType: mime
                         )
                         if success { successCount += 1 }
+                    } catch {
+                        DebugLogger.shared.log("Upload failed for \(filename): \(error.localizedDescription)")
                     }
-                } catch {
-                    DebugLogger.shared.log("Error loading photo data: \(error.localizedDescription)")
+                } else {
+                    DebugLogger.shared.log("Failed to extract data from PhotosPickerItem #\(index + 1)")
                 }
             }
             
@@ -604,12 +618,48 @@ public struct FileBrowserView: View {
                 self.isUploading = false
                 self.uploadProgress = 1.0
                 if successCount > 0 {
-                    self.showToast("\(successCount) Datei(en) erfolgreich hochgeladen ✓")
+                    self.showToast("\(successCount) Foto(s)/Video(s) erfolgreich hochgeladen ✓")
+                } else {
+                    self.showToast("Upload fehlgeschlagen")
                 }
             }
             
             await loadFiles(isSilent: true)
         }
+    }
+    
+    /// Loads raw binary data, filename, and MIME type from any PhotosPickerItem (Photos, LivePhotos, Videos)
+    private func loadMediaItemData(from item: PhotosPickerItem, index: Int) async -> (Data, String, String)? {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        
+        // 1. Try URL file export (works best for videos and full-res raw media)
+        if let fileURL = try? await item.loadTransferable(type: URL.self) {
+            if let data = try? Data(contentsOf: fileURL) {
+                let name = fileURL.lastPathComponent
+                let ext = fileURL.pathExtension.lowercased()
+                let mime = UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
+                return (data, name, mime)
+            }
+        }
+        
+        // 2. Try raw Data loading
+        if let rawData = try? await item.loadTransferable(type: Data.self) {
+            let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
+            let mime = item.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
+            let filename = "MEDIA_\(timestamp)_\(index).\(ext)"
+            return (rawData, filename, mime)
+        }
+        
+        // 3. Try Image loading fallback
+        if let image = try? await item.loadTransferable(type: Image.self) {
+            // Render SwiftUI Image to UIImage
+            let renderer = ImageRenderer(content: image)
+            if let uiImage = renderer.uiImage, let jpegData = uiImage.jpegData(compressionQuality: 0.9) {
+                return (jpegData, "IMG_\(timestamp)_\(index).jpg", "image/jpeg")
+            }
+        }
+        
+        return nil
     }
     
     private func handleDocumentPickerResult(_ result: Result<[URL], Error>) {

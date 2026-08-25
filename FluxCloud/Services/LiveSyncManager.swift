@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 extension Notification.Name {
     public static let fluxCloudFilesDidChange = Notification.Name("fluxCloudFilesDidChange")
@@ -14,12 +15,35 @@ public class LiveSyncManager: ObservableObject {
     @Published public var lastEventTime: Date? = nil
     
     private var streamTask: Task<Void, Never>? = nil
+    private var pollTimer: Timer? = nil
     private var serverUrl: String = ""
     private var apiKey: String = ""
     private var shouldRun: Bool = false
     private var retryCount: Int = 0
     
-    private init() {}
+    private init() {
+        // Listen to app foreground notifications to immediately refresh
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handleAppDidBecomeActive() {
+        if shouldRun {
+            DebugLogger.shared.log("[LiveSync] App became active -> triggering refresh and reconnecting")
+            NotificationCenter.default.post(name: .fluxCloudFilesDidChange, object: nil)
+            if !isConnected && !isConnecting {
+                connect()
+            }
+        }
+    }
     
     // MARK: - Start Real-Time Live Sync
     
@@ -32,6 +56,7 @@ public class LiveSyncManager: ObservableObject {
         
         DebugLogger.shared.log("[LiveSync] Starting real-time sync with \(self.serverUrl)...")
         connect()
+        startPeriodicSync()
     }
     
     // MARK: - Stop Live Sync
@@ -40,6 +65,7 @@ public class LiveSyncManager: ObservableObject {
         shouldRun = false
         streamTask?.cancel()
         streamTask = nil
+        stopPeriodicSync()
         DispatchQueue.main.async {
             self.isConnected = false
             self.isConnecting = false
@@ -60,7 +86,7 @@ public class LiveSyncManager: ObservableObject {
             }
             
             var components = URLComponents(string: "\(self.serverUrl)/api/events")
-            if !self.apiKey.isEmpty && !self.apiKey.hasPrefix("Basic ") {
+            if !self.apiKey.isEmpty {
                 components?.queryItems = [URLQueryItem(name: "key", value: self.apiKey)]
             }
             
@@ -73,7 +99,7 @@ public class LiveSyncManager: ObservableObject {
             request.httpMethod = "GET"
             request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
             request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
-            request.timeoutInterval = 300 // long-lived stream
+            request.timeoutInterval = 3600
             
             if !self.apiKey.isEmpty {
                 if self.apiKey.hasPrefix("Basic ") {
@@ -84,7 +110,7 @@ public class LiveSyncManager: ObservableObject {
             }
             
             let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 300
+            config.timeoutIntervalForRequest = 3600
             config.timeoutIntervalForResource = 86400
             let session = URLSession(configuration: config)
             
@@ -92,7 +118,7 @@ public class LiveSyncManager: ObservableObject {
                 let (bytes, response) = try await session.bytes(for: request)
                 
                 guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    DebugLogger.shared.log("[LiveSync] SSE connection status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                    DebugLogger.shared.log("[LiveSync] SSE status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
                     throw URLError(.badServerResponse)
                 }
                 
@@ -101,7 +127,7 @@ public class LiveSyncManager: ObservableObject {
                     self.isConnecting = false
                     self.retryCount = 0
                 }
-                DebugLogger.shared.log("[LiveSync] Live sync connected to server!")
+                DebugLogger.shared.log("[LiveSync] SSE stream connected!")
                 
                 for try await line in bytes.lines {
                     if !self.shouldRun { break }
@@ -114,7 +140,7 @@ public class LiveSyncManager: ObservableObject {
                 }
             } catch {
                 if !Task.isCancelled && self.shouldRun {
-                    DebugLogger.shared.log("[LiveSync] Connection interrupted: \(error.localizedDescription)")
+                    DebugLogger.shared.log("[LiveSync] Stream disconnected: \(error.localizedDescription)")
                 }
             }
             
@@ -123,16 +149,35 @@ public class LiveSyncManager: ObservableObject {
                 self.isConnecting = false
             }
             
-            // Reconnect logic with exponential backoff if still supposed to run
+            // Reconnect logic with backoff
             if self.shouldRun && !Task.isCancelled {
                 self.retryCount += 1
-                let delay = min(pow(2.0, Double(min(self.retryCount, 5))), 20.0)
-                DebugLogger.shared.log("[LiveSync] Reconnecting in \(Int(delay))s...")
+                let delay = min(Double(self.retryCount * 2), 10.0)
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 if self.shouldRun {
                     self.connect()
                 }
             }
+        }
+    }
+    
+    // MARK: - Periodic Background Sync (Fail-Proof Heartbeat)
+    
+    private func startPeriodicSync() {
+        DispatchQueue.main.async {
+            self.pollTimer?.invalidate()
+            // Periodic lightweight trigger every 5 seconds while active
+            self.pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+                guard let self = self, self.shouldRun else { return }
+                NotificationCenter.default.post(name: .fluxCloudFilesDidChange, object: nil)
+            }
+        }
+    }
+    
+    private func stopPeriodicSync() {
+        DispatchQueue.main.async {
+            self.pollTimer?.invalidate()
+            self.pollTimer = nil
         }
     }
     
@@ -145,7 +190,7 @@ public class LiveSyncManager: ObservableObject {
             if let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 let type = (obj["type"] as? String) ?? "event"
                 
-                // Ignore initial connection ping
+                // Ignore raw connection ping
                 if obj["connected"] != nil || type == "ping" {
                     return
                 }
@@ -153,7 +198,7 @@ public class LiveSyncManager: ObservableObject {
                 DispatchQueue.main.async {
                     self.lastEventDescription = "Update: \(type)"
                     self.lastEventTime = Date()
-                    DebugLogger.shared.log("[LiveSync] Received event: \(type) -> Auto-refreshing view")
+                    DebugLogger.shared.log("[LiveSync] Server event received: \(type) -> Refreshing file browser")
                     
                     // Post notification to trigger instant UI refresh in file browser
                     NotificationCenter.default.post(
@@ -163,8 +208,6 @@ public class LiveSyncManager: ObservableObject {
                     )
                 }
             }
-        } catch {
-            // Non-JSON line or keepalive
-        }
+        } catch {}
     }
 }

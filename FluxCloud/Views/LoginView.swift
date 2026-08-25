@@ -228,7 +228,7 @@ public struct LoginView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Color.white.opacity(0.1))
-                        .foregroundColor(.white)
+                        .foregroundColor(.cyan)
                         .cornerRadius(8)
                 }
             }
@@ -236,27 +236,85 @@ public struct LoginView: View {
             .background(Color.black.opacity(0.35))
             .cornerRadius(10)
             
-            // Picker Switcher (Username/Password vs API Key)
-            Picker("Anmeldeart", selection: $authMethod) {
-                Text("Benutzername").tag(AuthMethod.credentials)
-                Text("API Key").tag(AuthMethod.apiKey)
+            // Custom Segmented Tab Switcher with Accent Color
+            HStack(spacing: 0) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        authMethod = .credentials
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.fill")
+                            .font(.caption)
+                        Text("Benutzerkonto")
+                            .font(.subheadline)
+                            .fontWeight(authMethod == .credentials ? .semibold : .regular)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        authMethod == .credentials
+                            ? Color.blue.opacity(0.35)
+                            : Color.clear
+                    )
+                    .foregroundColor(authMethod == .credentials ? Color.cyan : Color.gray)
+                    .cornerRadius(10)
+                }
+                
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        authMethod = .apiKey
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "key.fill")
+                            .font(.caption)
+                        Text("API Key")
+                            .font(.subheadline)
+                            .fontWeight(authMethod == .apiKey ? .semibold : .regular)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        authMethod == .apiKey
+                            ? Color.blue.opacity(0.35)
+                            : Color.clear
+                    )
+                    .foregroundColor(authMethod == .apiKey ? Color.cyan : Color.gray)
+                    .cornerRadius(10)
+                }
             }
-            .pickerStyle(.segmented)
-            .padding(.vertical, 2)
+            .padding(4)
+            .background(Color.black.opacity(0.4))
+            .cornerRadius(12)
             
             if authMethod == .credentials {
-                // Username & Password Fields
+                // Username Field with custom placeholder
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Benutzername", systemImage: "person.fill")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.gray)
                     
                     HStack {
-                        TextField("admin", text: $username)
-                            .textContentType(.username)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                            .foregroundColor(.white)
+                        ZStack(alignment: .leading) {
+                            if username.isEmpty {
+                                Text(verbatim: "admin")
+                                    .foregroundColor(Color.gray.opacity(0.65))
+                                    .font(.body)
+                            }
+                            TextField("", text: $username)
+                                .textContentType(.username)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .foregroundColor(.white)
+                        }
+                        
+                        if !username.isEmpty {
+                            Button(action: { username = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.gray)
+                            }
+                        }
                     }
                     .padding(14)
                     .background(Color.white.opacity(0.08))
@@ -267,22 +325,31 @@ public struct LoginView: View {
                     )
                 }
                 
+                // Password Field with custom placeholder
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Passwort", systemImage: "lock.fill")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.gray)
                     
                     HStack {
-                        if isSecurePassword {
-                            SecureField("Passwort", text: $password)
-                                .textContentType(.password)
-                                .foregroundColor(.white)
-                        } else {
-                            TextField("Passwort", text: $password)
-                                .textContentType(.password)
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
-                                .foregroundColor(.white)
+                        ZStack(alignment: .leading) {
+                            if password.isEmpty {
+                                Text(verbatim: "Passwort eingeben")
+                                    .foregroundColor(Color.gray.opacity(0.65))
+                                    .font(.body)
+                            }
+                            
+                            if isSecurePassword {
+                                SecureField("", text: $password)
+                                    .textContentType(.password)
+                                    .foregroundColor(.white)
+                            } else {
+                                TextField("", text: $password)
+                                    .textContentType(.password)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .foregroundColor(.white)
+                            }
                         }
                         
                         Button(action: { isSecurePassword.toggle() }) {
@@ -299,23 +366,31 @@ public struct LoginView: View {
                     )
                 }
             } else {
-                // API Key Field
+                // API Key Field with custom placeholder
                 VStack(alignment: .leading, spacing: 8) {
                     Label("API Key", systemImage: "key.fill")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.gray)
                     
                     HStack {
-                        if isSecureApiKey {
-                            SecureField("fc_...", text: $apiKey)
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
-                                .foregroundColor(.white)
-                        } else {
-                            TextField("fc_...", text: $apiKey)
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
-                                .foregroundColor(.white)
+                        ZStack(alignment: .leading) {
+                            if apiKey.isEmpty {
+                                Text(verbatim: "fc_...")
+                                    .foregroundColor(Color.gray.opacity(0.65))
+                                    .font(.body)
+                            }
+                            
+                            if isSecureApiKey {
+                                SecureField("", text: $apiKey)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .foregroundColor(.white)
+                            } else {
+                                TextField("", text: $apiKey)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                                    .foregroundColor(.white)
+                            }
                         }
                         
                         Button(action: { isSecureApiKey.toggle() }) {
