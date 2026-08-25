@@ -29,30 +29,39 @@ public struct LoginView: View {
                         
                         // App Logo & Header
                         VStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.blue, Color.cyan],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 76, height: 76)
-                                    .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 6)
-                                
-                                Image(systemName: "cloud.fill")
+                            if UIImage(named: "AppLogo") != nil {
+                                Image("AppLogo")
                                     .resizable()
                                     .scaledToFit()
-                                    .frame(width: 40, height: 40)
-                                    .foregroundColor(.white)
+                                    .frame(width: 80, height: 80)
+                                    .cornerRadius(18)
+                                    .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 6)
+                            } else {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.blue, Color.cyan],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 76, height: 76)
+                                        .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 6)
+                                    
+                                    Image(systemName: "cloud.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 40, height: 40)
+                                        .foregroundColor(.white)
+                                }
                             }
                             
                             Text("FluxCloud")
                                 .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                             
-                            Text("Nativer iOS Client")
+                            Text("Native iOS Client for Personal Cloud")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
@@ -61,17 +70,24 @@ public struct LoginView: View {
                         VStack(spacing: 18) {
                             // Server URL Field
                             VStack(alignment: .leading, spacing: 8) {
-                                Label("Server Adresse", systemImage: "server.rack")
+                                Label("Server Address", systemImage: "server.rack")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.gray)
                                 
                                 HStack {
-                                    TextField("http://10.116.4.79:3033", text: $serverUrl)
-                                        .textContentType(.URL)
-                                        .keyboardType(.URL)
-                                        .autocapitalization(.none)
-                                        .disableAutocorrection(true)
-                                        .foregroundColor(.white)
+                                    ZStack(alignment: .leading) {
+                                        if serverUrl.isEmpty {
+                                            Text("https://cloud.example.com")
+                                                .foregroundColor(Color.gray.opacity(0.65))
+                                                .font(.body)
+                                        }
+                                        TextField("", text: $serverUrl)
+                                            .textContentType(.URL)
+                                            .keyboardType(.URL)
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                            .foregroundColor(.white)
+                                    }
                                     
                                     if !serverUrl.isEmpty {
                                         Button(action: { serverUrl = "" }) {
@@ -91,21 +107,29 @@ public struct LoginView: View {
                             
                             // API Key Field
                             VStack(alignment: .leading, spacing: 8) {
-                                Label("API-Key", systemImage: "key.fill")
+                                Label("API Key", systemImage: "key.fill")
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.gray)
                                 
                                 HStack {
-                                    if isSecureApiKey {
-                                        SecureField("API-Schlüssel eingeben", text: $apiKey)
-                                            .autocapitalization(.none)
-                                            .disableAutocorrection(true)
-                                            .foregroundColor(.white)
-                                    } else {
-                                        TextField("API-Schlüssel eingeben", text: $apiKey)
-                                            .autocapitalization(.none)
-                                            .disableAutocorrection(true)
-                                            .foregroundColor(.white)
+                                    ZStack(alignment: .leading) {
+                                        if apiKey.isEmpty {
+                                            Text("fc_...")
+                                                .foregroundColor(Color.gray.opacity(0.65))
+                                                .font(.body)
+                                        }
+                                        
+                                        if isSecureApiKey {
+                                            SecureField("", text: $apiKey)
+                                                .autocapitalization(.none)
+                                                .disableAutocorrection(true)
+                                                .foregroundColor(.white)
+                                        } else {
+                                            TextField("", text: $apiKey)
+                                                .autocapitalization(.none)
+                                                .disableAutocorrection(true)
+                                                .foregroundColor(.white)
+                                        }
                                     }
                                     
                                     Button(action: { isSecureApiKey.toggle() }) {
@@ -148,10 +172,10 @@ public struct LoginView: View {
                                     if authManager.isLoading {
                                         ProgressView()
                                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        Text("Verbinde...")
+                                        Text("Connecting...")
                                             .font(.headline)
                                     } else {
-                                        Text("Verbinden & Anmelden")
+                                        Text("Connect & Sign In")
                                             .font(.headline)
                                         Image(systemName: "arrow.right")
                                             .font(.headline)
@@ -185,7 +209,7 @@ public struct LoginView: View {
                         // Live Debug Log Terminal Box
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
-                                Label("Live Verbindungs-Log", systemImage: "terminal.fill")
+                                Label("Live Connection Log", systemImage: "terminal.fill")
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(.gray)
                                 
@@ -199,7 +223,7 @@ public struct LoginView: View {
                                             copiedLogsNotice = false
                                         }
                                     }) {
-                                        Text(copiedLogsNotice ? "Kopiert!" : "Kopieren")
+                                        Text(copiedLogsNotice ? "Copied!" : "Copy")
                                             .font(.caption2)
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 4)
@@ -211,7 +235,7 @@ public struct LoginView: View {
                                     Button(action: {
                                         debugLogger.clear()
                                     }) {
-                                        Text("Leeren")
+                                        Text("Clear")
                                             .font(.caption2)
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 4)
@@ -226,7 +250,7 @@ public struct LoginView: View {
                                 ScrollView {
                                     LazyVStack(alignment: .leading, spacing: 4) {
                                         if debugLogger.logs.isEmpty {
-                                            Text("Noch keine Verbindungsversuche. Drücke auf 'Verbinden', um die Logs live zu sehen.")
+                                            Text("No connection attempts yet. Tap 'Connect & Sign In' to see live logs.")
                                                 .font(.system(size: 11, design: .monospaced))
                                                 .foregroundColor(.gray.opacity(0.7))
                                                 .padding(.vertical, 8)
@@ -271,13 +295,14 @@ public struct LoginView: View {
     }
     
     private func logColor(for line: String) -> Color {
-        if line.contains("FEHLER") || line.contains("fehlgeschlagen") {
+        let lower = line.lowercased()
+        if lower.contains("error") || lower.contains("fehler") || lower.contains("failed") {
             return Color(red: 1.0, green: 0.4, blue: 0.4)
         }
-        if line.contains("Statuscode: HTTP 200") || line.contains("erfolgreich") || line.contains("Gültig") {
+        if lower.contains("http 200") || lower.contains("success") || lower.contains("valid") {
             return Color(red: 0.4, green: 1.0, blue: 0.5)
         }
-        if line.contains("Sende") || line.contains("Starte") {
+        if lower.contains("sending") || lower.contains("start") || lower.contains("sende") {
             return Color(red: 0.4, green: 0.8, blue: 1.0)
         }
         return Color(red: 0.9, green: 0.9, blue: 0.9)

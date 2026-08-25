@@ -69,7 +69,7 @@ public struct FileItem: Identifiable, Codable, Hashable {
     
     public var formattedSize: String {
         if isDirectory {
-            return "Ordner"
+            return "Folder"
         }
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB, .useTB]

@@ -65,7 +65,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         isChecking = true
         errorMessage = nil
         
-        DebugLogger.shared.log("Prüfe GitHub auf neue Releases (Timestamp-Vergleich)...")
+        DebugLogger.shared.log("Checking GitHub for new releases (timestamp comparison)...")
         
         guard let url = URL(string: githubApiURL) else {
             isChecking = false
@@ -98,27 +98,27 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
             }
             
             guard let latest = release, let releaseDate = latest.effectiveDate else {
-                DebugLogger.shared.log("Kein GitHub Release gefunden (404 / noch kein Release publiziert).")
+                DebugLogger.shared.log("No GitHub release found (404 / no release published yet).")
                 isChecking = false
                 return
             }
             
             let localDate = referenceTimestamp
-            DebugLogger.shared.log("Neuestes Release Datum: \(latest.formattedDate) | Lokaler Stand: \(DateFormatter.localizedString(from: localDate, dateStyle: .medium, timeStyle: .short))")
+            DebugLogger.shared.log("Latest release date: \(latest.formattedDate) | Local baseline: \(DateFormatter.localizedString(from: localDate, dateStyle: .medium, timeStyle: .short))")
             
             // Compare release timestamp with local app timestamp (+10s tolerance)
             if releaseDate.timeIntervalSince1970 > (localDate.timeIntervalSince1970 + 10.0) || force {
-                DebugLogger.shared.log("Neues Release gefunden! Veröffentlicht am: \(latest.formattedDate)")
+                DebugLogger.shared.log("New release available! Published on: \(latest.formattedDate)")
                 self.latestRelease = latest
                 self.isUpdateAvailable = true
                 self.showUpdateSheet = true
             } else {
-                DebugLogger.shared.log("App ist auf dem neuesten Stand.")
+                DebugLogger.shared.log("App is up to date.")
                 self.isUpdateAvailable = false
             }
             isChecking = false
         } catch {
-            DebugLogger.shared.log("Fehler beim Prüfen auf Updates: \(error.localizedDescription)")
+            DebugLogger.shared.log("Error checking for updates: \(error.localizedDescription)")
             isChecking = false
         }
     }
@@ -128,7 +128,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
     @MainActor
     public func startDownload() {
         guard let release = latestRelease, let asset = release.ipaAsset, let downloadURL = URL(string: asset.browserDownloadUrl) else {
-            errorMessage = "Keine .ipa-Datei im Release gefunden."
+            errorMessage = "No .ipa asset found in the latest release."
             return
         }
         
@@ -137,7 +137,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
         errorMessage = nil
         downloadedIpaURL = nil
         
-        DebugLogger.shared.log("Starte Download von FluxCloud.ipa (\(asset.formattedSize))...")
+        DebugLogger.shared.log("Starting download of FluxCloud.ipa (\(asset.formattedSize))...")
         
         var request = URLRequest(url: downloadURL)
         request.setValue("FluxCloud-iOS-AutoUpdater", forHTTPHeaderField: "User-Agent")
@@ -195,13 +195,13 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
                 self.downloadedIpaURL = destURL
                 self.isDownloading = false
                 self.downloadProgress = 1.0
-                DebugLogger.shared.log("FluxCloud.ipa erfolgreich heruntergeladen!")
+                DebugLogger.shared.log("FluxCloud.ipa downloaded successfully!")
             }
         } catch {
             DispatchQueue.main.async {
                 self.isDownloading = false
-                self.errorMessage = "Fehler beim Speichern: \(error.localizedDescription)"
-                DebugLogger.shared.log("Fehler beim Speichern der IPA: \(error.localizedDescription)")
+                self.errorMessage = "Failed to save file: \(error.localizedDescription)"
+                DebugLogger.shared.log("Failed to save IPA: \(error.localizedDescription)")
             }
         }
     }
@@ -211,7 +211,7 @@ public class UpdateManager: NSObject, ObservableObject, URLSessionDownloadDelega
             DispatchQueue.main.async {
                 self.isDownloading = false
                 self.errorMessage = error.localizedDescription
-                DebugLogger.shared.log("Download fehlgeschlagen: \(error.localizedDescription)")
+                DebugLogger.shared.log("Download failed: \(error.localizedDescription)")
             }
         }
     }

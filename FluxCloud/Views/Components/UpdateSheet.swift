@@ -38,18 +38,18 @@ public struct UpdateSheet: View {
                         
                         // Title & Subtitle
                         VStack(spacing: 8) {
-                            Text("Neues Update verfügbar")
+                            Text("New Update Available")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.primary)
                             
                             if let release = updateManager.latestRelease {
-                                Text("Veröffentlicht am \(release.formattedDate)")
+                                Text("Published on \(release.formattedDate)")
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 
                                 if let size = release.ipaAsset?.formattedSize {
-                                    Text("Dateigröße: \(size)")
+                                    Text("File size: \(size)")
                                         .font(.caption)
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 4)
@@ -63,7 +63,7 @@ public struct UpdateSheet: View {
                         // Release Notes Card (if present)
                         if let body = updateManager.latestRelease?.body, !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Änderungen:")
+                                Text("Changelog:")
                                     .font(.caption)
                                     .fontWeight(.bold)
                                     .foregroundColor(.secondary)
@@ -89,7 +89,7 @@ public struct UpdateSheet: View {
                                         .cornerRadius(4)
                                     
                                     HStack {
-                                        Text("Wird heruntergeladen...")
+                                        Text("Downloading...")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                         Spacer()
@@ -102,7 +102,7 @@ public struct UpdateSheet: View {
                                     Button(action: {
                                         updateManager.cancelDownload()
                                     }) {
-                                        Text("Abbrechen")
+                                        Text("Cancel")
                                             .font(.subheadline)
                                             .foregroundColor(.red)
                                     }
@@ -119,12 +119,12 @@ public struct UpdateSheet: View {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundColor(.green)
                                             .font(.title3)
-                                        Text("Download abgeschlossen!")
+                                        Text("Download Completed!")
                                             .font(.headline)
                                             .foregroundColor(.primary)
                                     }
                                     
-                                    Text("Öffne die .ipa Datei mit AltStore, TrollStore, LiveContainer oder speichere sie in Dateien.")
+                                    Text("Open the .ipa file with AltStore, TrollStore, LiveContainer, or save to Files.")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                         .multilineTextAlignment(.center)
@@ -134,7 +134,7 @@ public struct UpdateSheet: View {
                                     }) {
                                         HStack {
                                             Image(systemName: "square.and.arrow.up.fill")
-                                            Text("Installieren / In App öffnen")
+                                            Text("Install / Open in App")
                                         }
                                         .font(.headline)
                                         .foregroundColor(.white)
@@ -155,7 +155,7 @@ public struct UpdateSheet: View {
                                 }) {
                                     HStack(spacing: 10) {
                                         Image(systemName: "arrow.down.circle.fill")
-                                        Text("Update jetzt herunterladen")
+                                        Text("Download Update Now")
                                     }
                                     .font(.headline)
                                     .foregroundColor(.white)
@@ -176,7 +176,7 @@ public struct UpdateSheet: View {
                                 Button(action: {
                                     updateManager.showUpdateSheet = false
                                 }) {
-                                    Text("Später erinnern")
+                                    Text("Remind Me Later")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
@@ -197,7 +197,7 @@ public struct UpdateSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Schließen") {
+                    Button("Close") {
                         updateManager.showUpdateSheet = false
                     }
                 }

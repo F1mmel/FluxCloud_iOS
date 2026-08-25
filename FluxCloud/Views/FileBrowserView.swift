@@ -15,11 +15,11 @@ public struct FileBrowserView: View {
     @State private var showLogoutAlert: Bool = false
     
     private let categories = [
-        ("all", "Alle"),
-        ("folder", "Ordner"),
-        ("image", "Bilder"),
+        ("all", "All"),
+        ("folder", "Folders"),
+        ("image", "Images"),
         ("video", "Videos"),
-        ("document", "Dokumente"),
+        ("document", "Documents"),
         ("code", "Code")
     ]
     
@@ -63,7 +63,7 @@ public struct FileBrowserView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Category Filter Pills (if root or folder has items)
+                // Category Filter Pills
                 if !items.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -100,7 +100,7 @@ public struct FileBrowserView: View {
                         Spacer()
                         ProgressView()
                             .scaleEffect(1.2)
-                        Text("Lade Dateien...")
+                        Text("Loading files...")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -116,7 +116,7 @@ public struct FileBrowserView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
-                        Button("Erneut versuchen") {
+                        Button("Try Again") {
                             Task { await loadFiles() }
                         }
                         .buttonStyle(.borderedProminent)
@@ -128,7 +128,7 @@ public struct FileBrowserView: View {
                         Image(systemName: searchText.isEmpty ? "folder" : "magnifyingglass")
                             .font(.system(size: 48))
                             .foregroundColor(.gray.opacity(0.5))
-                        Text(searchText.isEmpty ? "Dieser Ordner ist leer" : "Keine passenden Dateien gefunden")
+                        Text(searchText.isEmpty ? "This folder is empty" : "No matching files found")
                             .font(.headline)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -159,7 +159,7 @@ public struct FileBrowserView: View {
         }
         .navigationTitle(folderTitle)
         .navigationBarTitleDisplayMode(currentPath.isEmpty ? .large : .inline)
-        .searchable(text: $searchText, prompt: "Dateien suchen...")
+        .searchable(text: $searchText, prompt: "Search files...")
         .toolbar {
             if currentPath.isEmpty {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -170,13 +170,13 @@ public struct FileBrowserView: View {
                                     await UpdateManager.shared.checkForUpdates(force: true)
                                 }
                             }) {
-                                Label("Auf Updates prüfen", systemImage: "arrow.triangle.2.circlepath")
+                                Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
                             }
                             
                             Button(role: .destructive, action: {
                                 showLogoutAlert = true
                             }) {
-                                Label("Abmelden", systemImage: "rectangle.portrait.and.arrow.right")
+                                Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                             }
                         }
                     } label: {
@@ -186,13 +186,13 @@ public struct FileBrowserView: View {
                 }
             }
         }
-        .alert("Abmelden", isPresented: $showLogoutAlert) {
-            Button("Abbrechen", role: .cancel) {}
-            Button("Abmelden", role: .destructive) {
+        .alert("Sign Out", isPresented: $showLogoutAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Sign Out", role: .destructive) {
                 authManager.logout()
             }
         } message: {
-            Text("Möchtest du dich wirklich vom FluxCloud Server abmelden?")
+            Text("Are you sure you want to sign out from this FluxCloud server?")
         }
         .sheet(item: $selectedFileForDetail) { item in
             FileDetailView(item: item)

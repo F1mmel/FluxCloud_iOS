@@ -41,7 +41,7 @@ public struct FileDetailView: View {
                                         .font(.system(size: 64))
                                         .foregroundColor(item.iconColor)
                                     
-                                    Text(item.extensionName?.uppercased() ?? "DATEI")
+                                    Text(item.extensionName?.uppercased() ?? "FILE")
                                         .font(.caption)
                                         .fontWeight(.bold)
                                         .padding(.horizontal, 10)
@@ -62,14 +62,14 @@ public struct FileDetailView: View {
                             
                             Divider()
                             
-                            DetailRow(title: "Dateiname", value: item.name)
-                            DetailRow(title: "Pfad", value: item.relativePath)
-                            DetailRow(title: "Größe", value: item.formattedSize)
+                            DetailRow(title: "Filename", value: item.name)
+                            DetailRow(title: "Path", value: item.relativePath)
+                            DetailRow(title: "Size", value: item.formattedSize)
                             if !item.formattedDate.isEmpty {
-                                DetailRow(title: "Zuletzt geändert", value: item.formattedDate)
+                                DetailRow(title: "Last Modified", value: item.formattedDate)
                             }
                             if let mime = item.mimeType {
-                                DetailRow(title: "MIME-Typ", value: mime)
+                                DetailRow(title: "MIME Type", value: mime)
                             }
                         }
                         .padding(18)
@@ -95,10 +95,10 @@ public struct FileDetailView: View {
                                     if isDownloading {
                                         ProgressView()
                                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        Text("Wird heruntergeladen...")
+                                        Text("Downloading...")
                                     } else {
                                         Image(systemName: "square.and.arrow.up")
-                                        Text("Öffnen / Teilen")
+                                        Text("Open / Share")
                                     }
                                 }
                                 .font(.headline)
@@ -116,7 +116,7 @@ public struct FileDetailView: View {
                                 }) {
                                     HStack {
                                         Image(systemName: "link")
-                                        Text("Download-Link kopieren")
+                                        Text("Copy Download Link")
                                     }
                                     .font(.subheadline)
                                     .foregroundColor(.blue)
@@ -138,7 +138,7 @@ public struct FileDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Fertig") {
+                    Button("Done") {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
@@ -174,7 +174,7 @@ public struct FileDetailView: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "Fehler beim Herunterladen: \(error.localizedDescription)"
+                    self.errorMessage = "Download failed: \(error.localizedDescription)"
                     self.isDownloading = false
                 }
             }

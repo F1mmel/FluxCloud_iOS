@@ -32,7 +32,7 @@ public class AuthManager: ObservableObject {
         
         guard !cleanedUrl.isEmpty else {
             isLoading = false
-            errorMessage = "Bitte gib eine gültige Server-Adresse ein."
+            errorMessage = "Please enter a valid server address."
             return false
         }
         
@@ -50,7 +50,7 @@ public class AuthManager: ObservableObject {
                 return true
             } else {
                 isLoading = false
-                errorMessage = "API-Key wurde vom Server abgelehnt."
+                errorMessage = "API Key was rejected by the server."
                 return false
             }
         } catch {
