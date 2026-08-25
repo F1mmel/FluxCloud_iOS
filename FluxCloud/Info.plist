@@ -35,6 +35,12 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>FluxCloud benötigt Zugriff auf das lokale Netzwerk, um eine Verbindung zu lokalen HTTP-Servern und IP-Adressen herzustellen.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FluxCloud benötigt Zugriff auf deine Fotos, um Bilder und Videos auf deinen Cloud-Server hochzuladen.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>FluxCloud benötigt die Berechtigung, Fotos und Medien in deiner Fotogalerie zu speichern.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FluxCloud benötigt Zugriff auf die Kamera, um Fotos und Videos direkt aufzunehmen und hochzuladen.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>

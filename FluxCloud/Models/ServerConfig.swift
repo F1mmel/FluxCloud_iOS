@@ -4,10 +4,12 @@ import Foundation
 public struct ServerConfig: Codable, Equatable {
     public var serverUrl: String
     public var apiKey: String
+    public var username: String
     
-    public init(serverUrl: String = "", apiKey: String = "") {
+    public init(serverUrl: String = "", apiKey: String = "", username: String = "") {
         self.serverUrl = serverUrl
         self.apiKey = apiKey
+        self.username = username
     }
     
     /// Normalizes and formats the server URL supporting both HTTP and HTTPS
@@ -47,4 +49,42 @@ public struct ServerConfig: Codable, Equatable {
 /// Response model for /api/verify-key
 public struct VerifyKeyResponse: Codable {
     public let valid: Bool
+}
+
+/// Response model for /api/auth/login
+public struct AuthLoginResponse: Codable {
+    public let success: Bool
+    public let token: String?
+    public let user: AuthUserInfo?
+    public let requiresPasswordSetup: Bool?
+    public let message: String?
+}
+
+public struct AuthUserInfo: Codable {
+    public let id: String
+    public let username: String
+    public let role: String?
+}
+
+/// Response model for /api/upload
+public struct UploadResponse: Codable {
+    public let success: Bool
+    public let files: [UploadedFileInfo]?
+    public let message: String?
+}
+
+public struct UploadedFileInfo: Codable {
+    public let name: String
+    public let relativePath: String
+    public let url: String?
+    public let mimeType: String?
+}
+
+/// Model for real-time SSE events
+public struct LiveEventPayload: Codable {
+    public let type: String
+    public let username: String?
+    public let path: String?
+    public let targetPath: String?
+    public let timestamp: Double?
 }
