@@ -30,6 +30,8 @@
 		<true/>
 		<key>NSAllowsArbitraryLoadsInWebContent</key>
 		<true/>
+		<key>NSAllowsArbitraryLoadsForMedia</key>
+		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>FluxCloud benötigt Zugriff auf das lokale Netzwerk, um eine Verbindung zu lokalen HTTP-Servern und IP-Adressen herzustellen.</string>
