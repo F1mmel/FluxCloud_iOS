@@ -35,6 +35,11 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>FluxCloud benötigt Zugriff auf das lokale Netzwerk, um eine Verbindung zu lokalen HTTP-Servern und IP-Adressen herzustellen.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_bonjour._tcp</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
