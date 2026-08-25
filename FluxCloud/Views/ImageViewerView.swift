@@ -1,12 +1,13 @@
 import SwiftUI
 import Photos
+import AVKit
 
 public struct ImageViewerView: View {
     public let item: FileItem
     @EnvironmentObject var authManager: AuthManager
     @Environment(\.presentationMode) var presentationMode
     
-    // Zoom & Pan state
+    // Zoom & Pan state (for Images)
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
@@ -16,8 +17,9 @@ public struct ImageViewerView: View {
     @State private var dragDismissOffset: CGFloat = 0.0
     @State private var isDraggingToDismiss: Bool = false
     
-    // Actions & UI state
+    // Media & Player state
     @State private var downloadedImage: UIImage? = nil
+    @State private var player: AVPlayer? = nil
     @State private var isDownloading: Bool = false
     @State private var showShareSheet: Bool = false
     @State private var localShareURL: URL? = nil
@@ -44,119 +46,24 @@ public struct ImageViewerView: View {
                 .opacity(backgroundOpacity)
                 .ignoresSafeArea()
             
-            // Image Content with Pinch, Pan, and Swipe Down to Dismiss
+            // Media Content (Image or Video)
             GeometryReader { proxy in
                 ZStack {
-                    if let image = downloadedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .scaleEffect(isDraggingToDismiss ? max(0.8, 1.0 - (dragDismissOffset / 1200.0)) : scale)
-                            .offset(
-                                x: scale > 1.05 ? offset.width : 0,
-                                y: scale > 1.05 ? offset.height : dragDismissOffset
-                            )
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        let delta = value / lastScale
-                                        lastScale = value
-                                        let newScale = scale * delta
-                                        scale = min(max(newScale, 0.8), 6.0)
-                                    }
-                                    .onEnded { _ in
-                                        lastScale = 1.0
-                                        if scale < 1.0 {
-                                            withAnimation(.spring()) {
-                                                scale = 1.0
-                                                offset = .zero
-                                            }
-                                        }
-                                    }
-                            )
-                            .simultaneousGesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        if scale > 1.05 {
-                                            // Panning zoomed image
-                                            offset = CGSize(
-                                                width: lastOffset.width + value.translation.width,
-                                                height: lastOffset.height + value.translation.height
-                                            )
-                                        } else {
-                                            // Swipe down to dismiss gesture
-                                            if value.translation.height > 0 {
-                                                isDraggingToDismiss = true
-                                                dragDismissOffset = value.translation.height
-                                            }
-                                        }
-                                    }
-                                    .onEnded { value in
-                                        if scale > 1.05 {
-                                            lastOffset = offset
-                                        } else {
-                                            // Threshold for dismissing
-                                            if dragDismissOffset > 100 || value.predictedEndTranslation.height > 250 {
-                                                withAnimation(.easeOut(duration: 0.2)) {
-                                                    dragDismissOffset = proxy.size.height
-                                                }
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                                    presentationMode.wrappedValue.dismiss()
-                                                }
-                                            } else {
-                                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                                    dragDismissOffset = 0
-                                                    isDraggingToDismiss = false
-                                                }
-                                            }
-                                        }
-                                    }
-                            )
-                            .onTapGesture(count: 2) {
-                                withAnimation(.spring()) {
-                                    if scale > 1.0 {
-                                        scale = 1.0
-                                        offset = .zero
-                                        lastOffset = .zero
-                                    } else {
-                                        scale = 2.5
-                                    }
-                                }
-                            }
-                    } else if isDownloading {
-                        VStack(spacing: 14) {
-                            ProgressView()
-                                .scaleEffect(1.3)
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            Text("Bild wird geladen...")
-                                .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.8))
-                        }
-                    } else if let error = errorMessage {
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(error)
-                                .font(.subheadline)
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                            Button("Erneut versuchen") {
-                                Task { await loadImage() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
+                    if item.isVideo {
+                        videoContentView(proxy: proxy)
+                    } else {
+                        imageContentView(proxy: proxy)
                     }
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
             
-            // Top Action Bar (Fades out when swiping down)
+            // Top Floating Action Bar
             VStack {
                 HStack(spacing: 16) {
                     // Dismiss Button
                     Button(action: {
+                        player?.pause()
                         presentationMode.wrappedValue.dismiss()
                     }) {
                         Image(systemName: "xmark")
@@ -170,22 +77,20 @@ public struct ImageViewerView: View {
                     Spacer()
                     
                     // Save to Photos Button
-                    if downloadedImage != nil {
-                        Button(action: {
-                            saveImageToPhotos()
-                        }) {
-                            Image(systemName: "arrow.down.to.line")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 40, height: 40)
-                                .background(Color.black.opacity(0.6))
-                                .clipShape(Circle())
-                        }
+                    Button(action: {
+                        saveMediaToPhotos()
+                    }) {
+                        Image(systemName: "arrow.down.to.line")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
                     }
                     
                     // Share Button
                     Button(action: {
-                        shareImage()
+                        shareMedia()
                     }) {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 16, weight: .semibold))
@@ -232,8 +137,218 @@ public struct ImageViewerView: View {
             }
         }
         .task {
-            await loadImage()
+            if item.isVideo {
+                setupAndPlayVideo()
+            } else {
+                await loadImage()
+            }
         }
+        .onDisappear {
+            player?.pause()
+        }
+    }
+    
+    // MARK: - Video Content View
+    
+    @ViewBuilder
+    private func videoContentView(proxy: GeometryProxy) -> some View {
+        ZStack {
+            // Thumbnail preview while video is buffering
+            if let thumbUrl = APIService.shared.getThumbnailURL(serverUrl: authManager.config.serverUrl, apiKey: authManager.config.apiKey, for: item) {
+                AuthenticatedAsyncImage(url: thumbUrl) { img in
+                    img
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: proxy.size.width, maxHeight: proxy.size.height)
+                } placeholder: {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
+            }
+            
+            // Autoplay Video Player
+            if let activePlayer = player {
+                VideoPlayer(player: activePlayer)
+                    .frame(maxWidth: proxy.size.width, maxHeight: proxy.size.height)
+            } else {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.3)
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    Text("Video wird geladen...")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                }
+            }
+        }
+        .scaleEffect(isDraggingToDismiss ? max(0.8, 1.0 - (dragDismissOffset / 1200.0)) : 1.0)
+        .offset(y: dragDismissOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.height > 0 {
+                        isDraggingToDismiss = true
+                        dragDismissOffset = value.translation.height
+                    }
+                }
+                .onEnded { value in
+                    if dragDismissOffset > 100 || value.predictedEndTranslation.height > 250 {
+                        player?.pause()
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            dragDismissOffset = proxy.size.height
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                    } else {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            dragDismissOffset = 0
+                            isDraggingToDismiss = false
+                        }
+                    }
+                }
+        )
+    }
+    
+    // MARK: - Image Content View
+    
+    @ViewBuilder
+    private func imageContentView(proxy: GeometryProxy) -> some View {
+        ZStack {
+            if let image = downloadedImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(isDraggingToDismiss ? max(0.8, 1.0 - (dragDismissOffset / 1200.0)) : scale)
+                    .offset(
+                        x: scale > 1.05 ? offset.width : 0,
+                        y: scale > 1.05 ? offset.height : dragDismissOffset
+                    )
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                let delta = value / lastScale
+                                lastScale = value
+                                let newScale = scale * delta
+                                scale = min(max(newScale, 0.8), 6.0)
+                            }
+                            .onEnded { _ in
+                                lastScale = 1.0
+                                if scale < 1.0 {
+                                    withAnimation(.spring()) {
+                                        scale = 1.0
+                                        offset = .zero
+                                    }
+                                }
+                            }
+                    )
+                    .simultaneousGesture(
+                        DragGesture()
+                            .onChanged { value in
+                                if scale > 1.05 {
+                                    // Panning zoomed image
+                                    offset = CGSize(
+                                        width: lastOffset.width + value.translation.width,
+                                        height: lastOffset.height + value.translation.height
+                                    )
+                                } else {
+                                    // Swipe down to dismiss gesture
+                                    if value.translation.height > 0 {
+                                        isDraggingToDismiss = true
+                                        dragDismissOffset = value.translation.height
+                                    }
+                                }
+                            }
+                            .onEnded { value in
+                                if scale > 1.05 {
+                                    lastOffset = offset
+                                } else {
+                                    // Threshold for dismissing
+                                    if dragDismissOffset > 100 || value.predictedEndTranslation.height > 250 {
+                                        withAnimation(.easeOut(duration: 0.2)) {
+                                            dragDismissOffset = proxy.size.height
+                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                            presentationMode.wrappedValue.dismiss()
+                                        }
+                                    } else {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                            dragDismissOffset = 0
+                                            isDraggingToDismiss = false
+                                        }
+                                    }
+                                }
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring()) {
+                            if scale > 1.0 {
+                                scale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                            } else {
+                                scale = 2.5
+                            }
+                        }
+                    }
+            } else if isDownloading {
+                // Show thumbnail placeholder while high-res loads
+                ZStack {
+                    if let thumbUrl = APIService.shared.getThumbnailURL(serverUrl: authManager.config.serverUrl, apiKey: authManager.config.apiKey, for: item) {
+                        AuthenticatedAsyncImage(url: thumbUrl) { img in
+                            img
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxWidth: proxy.size.width, maxHeight: proxy.size.height)
+                                .blur(radius: 2)
+                        } placeholder: {
+                            EmptyView()
+                        }
+                    }
+                    
+                    VStack(spacing: 14) {
+                        ProgressView()
+                            .scaleEffect(1.3)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        Text("Bild wird geladen...")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                }
+            } else if let error = errorMessage {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    Button("Erneut versuchen") {
+                        Task { await loadImage() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Video Setup & Autoplay
+    
+    private func setupAndPlayVideo() {
+        guard let streamUrl = APIService.shared.getDirectDownloadURL(
+            serverUrl: authManager.config.serverUrl,
+            apiKey: authManager.config.apiKey,
+            for: item
+        ) else {
+            errorMessage = "Ungültige Video-URL"
+            return
+        }
+        
+        let p = AVPlayer(url: streamUrl)
+        self.player = p
+        p.play()
     }
     
     // MARK: - Load High-Res Image
@@ -283,25 +398,53 @@ public struct ImageViewerView: View {
         }
     }
     
-    // MARK: - Save to Photos
+    // MARK: - Save Media to Photos
     
-    private func saveImageToPhotos() {
-        guard let image = downloadedImage else { return }
-        
-        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
-            DispatchQueue.main.async {
-                if status == .authorized || status == .limited {
-                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-                    triggerToast("In Fotos gesichert ✓")
-                } else {
-                    triggerToast("Zugriff auf Fotos verweigert")
+    private func saveMediaToPhotos() {
+        if item.isVideo {
+            Task {
+                do {
+                    let localURL = try await APIService.shared.downloadFileToLocal(
+                        serverUrl: authManager.config.serverUrl,
+                        apiKey: authManager.config.apiKey,
+                        item: item
+                    )
+                    
+                    PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+                        DispatchQueue.main.async {
+                            if status == .authorized || status == .limited {
+                                UISaveVideoAtPathToSavedPhotosAlbum(localURL.path, nil, nil, nil)
+                                triggerToast("Video in Fotos gesichert ✓")
+                            } else {
+                                triggerToast("Zugriff auf Fotos verweigert")
+                            }
+                        }
+                    }
+                } catch {
+                    triggerToast("Download fehlgeschlagen")
+                }
+            }
+        } else {
+            guard let image = downloadedImage else {
+                triggerToast("Bild noch nicht geladen")
+                return
+            }
+            
+            PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+                DispatchQueue.main.async {
+                    if status == .authorized || status == .limited {
+                        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                        triggerToast("In Fotos gesichert ✓")
+                    } else {
+                        triggerToast("Zugriff auf Fotos verweigert")
+                    }
                 }
             }
         }
     }
     
-    private func shareImage() {
-        if downloadedImage != nil {
+    private func shareMedia() {
+        if !item.isVideo && downloadedImage != nil {
             showShareSheet = true
         } else {
             Task {

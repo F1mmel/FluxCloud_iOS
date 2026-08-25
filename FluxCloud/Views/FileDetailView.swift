@@ -15,8 +15,8 @@ public struct FileDetailView: View {
     @State private var isPlayingAudio: Bool = false
     
     public var body: some View {
-        // If this is an image, display the pure clean image preview directly
-        if item.isImage {
+        // If this is an image or video, display the pure clean media preview directly
+        if item.isImage || item.isVideo {
             ImageViewerView(item: item)
                 .environmentObject(authManager)
         } else {

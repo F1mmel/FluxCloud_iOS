@@ -801,14 +801,25 @@ private struct FileRowView: View {
                     .fill(item.iconColor.opacity(0.12))
                     .frame(width: 48, height: 48)
                 
-                if item.isImage, let thumbUrl = APIService.shared.getThumbnailURL(serverUrl: serverUrl, apiKey: apiKey, for: item) {
+                if (item.isImage || item.isVideo), let thumbUrl = APIService.shared.getThumbnailURL(serverUrl: serverUrl, apiKey: apiKey, for: item) {
                     AuthenticatedAsyncImage(url: thumbUrl) { img in
-                        img
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 48, height: 48)
-                            .clipped()
-                            .cornerRadius(10)
+                        ZStack {
+                            img
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 48, height: 48)
+                                .clipped()
+                                .cornerRadius(10)
+                            
+                            if item.isVideo {
+                                Circle()
+                                    .fill(Color.black.opacity(0.5))
+                                    .frame(width: 20, height: 20)
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(.white)
+                            }
+                        }
                     } placeholder: {
                         Image(systemName: item.systemIconName)
                             .font(.system(size: 22))
@@ -868,14 +879,27 @@ private struct FileGridItemView: View {
                     .fill(item.iconColor.opacity(0.12))
                     .aspectRatio(1, contentMode: .fit)
                 
-                if item.isImage, let thumbUrl = APIService.shared.getThumbnailURL(serverUrl: serverUrl, apiKey: apiKey, for: item) {
+                if (item.isImage || item.isVideo), let thumbUrl = APIService.shared.getThumbnailURL(serverUrl: serverUrl, apiKey: apiKey, for: item) {
                     AuthenticatedAsyncImage(url: thumbUrl) { img in
-                        img
-                            .resizable()
-                            .scaledToFill()
-                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                            .clipped()
-                            .cornerRadius(12)
+                        ZStack {
+                            img
+                                .resizable()
+                                .scaledToFill()
+                                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                                .clipped()
+                                .cornerRadius(12)
+                            
+                            if item.isVideo {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.black.opacity(0.55))
+                                        .frame(width: 32, height: 32)
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
                     } placeholder: {
                         Image(systemName: item.systemIconName)
                             .font(.system(size: 32))
