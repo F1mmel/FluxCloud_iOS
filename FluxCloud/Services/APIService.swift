@@ -32,19 +32,15 @@ public class APIService: ObservableObject {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 20
         configuration.timeoutIntervalForResource = 60
+        configuration.allowsCellularAccess = true
+        configuration.waitsForConnectivity = true
         self.urlSession = URLSession(configuration: configuration)
     }
     
     // MARK: - Verify Key / Connection Check
     
     public func verifyKey(serverUrl: String, apiKey: String) async throws -> Bool {
-        var base = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !base.lowercased().hasPrefix("http://") && !base.lowercased().hasPrefix("https://") {
-            base = "https://" + base
-        }
-        while base.hasSuffix("/") {
-            base.removeLast()
-        }
+        let base = ServerConfig.formatBaseURL(serverUrl)
         
         guard let url = URL(string: "\(base)/api/verify-key") else {
             throw APIError.invalidURL
@@ -88,13 +84,7 @@ public class APIService: ObservableObject {
     // MARK: - Fetch Files
     
     public func fetchFiles(serverUrl: String, apiKey: String, path: String, category: String = "all", search: String = "") async throws -> [FileItem] {
-        var base = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !base.lowercased().hasPrefix("http://") && !base.lowercased().hasPrefix("https://") {
-            base = "https://" + base
-        }
-        while base.hasSuffix("/") {
-            base.removeLast()
-        }
+        let base = ServerConfig.formatBaseURL(serverUrl)
         
         var components = URLComponents(string: "\(base)/api/files")
         guard components != nil else {
@@ -156,13 +146,7 @@ public class APIService: ObservableObject {
     
     public func getDirectDownloadURL(serverUrl: String, apiKey: String, for item: FileItem) -> URL? {
         guard let urlString = item.url else { return nil }
-        var base = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !base.lowercased().hasPrefix("http://") && !base.lowercased().hasPrefix("https://") {
-            base = "https://" + base
-        }
-        while base.hasSuffix("/") {
-            base.removeLast()
-        }
+        let base = ServerConfig.formatBaseURL(serverUrl)
         
         let pathPart = urlString.hasPrefix("/") ? urlString : "/\(urlString)"
         var fullString = "\(base)\(pathPart)"
@@ -178,13 +162,7 @@ public class APIService: ObservableObject {
     
     public func getThumbnailURL(serverUrl: String, apiKey: String, for item: FileItem) -> URL? {
         guard let thumbString = item.thumbnailUrl else { return nil }
-        var base = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !base.lowercased().hasPrefix("http://") && !base.lowercased().hasPrefix("https://") {
-            base = "https://" + base
-        }
-        while base.hasSuffix("/") {
-            base.removeLast()
-        }
+        let base = ServerConfig.formatBaseURL(serverUrl)
         
         let pathPart = thumbString.hasPrefix("/") ? thumbString : "/\(thumbString)"
         var fullString = "\(base)\(pathPart)"

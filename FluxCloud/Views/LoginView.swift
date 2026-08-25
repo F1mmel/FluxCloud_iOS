@@ -66,7 +66,7 @@ public struct LoginView: View {
                                     .foregroundColor(.gray)
                                 
                                 HStack {
-                                    TextField("https://mein-fluxcloud.de", text: $serverUrl)
+                                    TextField("http://192.168.1.100:3000 oder https://...", text: $serverUrl)
                                         .textContentType(.URL)
                                         .keyboardType(.URL)
                                         .autocapitalization(.none)
