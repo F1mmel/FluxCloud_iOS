@@ -30,10 +30,11 @@ public class APIService: ObservableObject {
     
     public init(session: URLSession = .shared) {
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 20
-        configuration.timeoutIntervalForResource = 60
+        configuration.timeoutIntervalForRequest = 8
+        configuration.timeoutIntervalForResource = 12
         configuration.allowsCellularAccess = true
-        configuration.waitsForConnectivity = true
+        configuration.waitsForConnectivity = false
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.urlSession = URLSession(configuration: configuration)
     }
     
@@ -41,14 +42,18 @@ public class APIService: ObservableObject {
     
     public func verifyKey(serverUrl: String, apiKey: String) async throws -> Bool {
         let base = ServerConfig.formatBaseURL(serverUrl)
+        DebugLogger.shared.log("Starte Verbindungsprüfung...")
+        DebugLogger.shared.log("Server-URL: \(base)")
         
         guard let url = URL(string: "\(base)/api/verify-key") else {
+            DebugLogger.shared.log("FEHLER: Konnte URL nicht parsen: \(base)/api/verify-key")
             throw APIError.invalidURL
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         if !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -57,28 +62,79 @@ public class APIService: ObservableObject {
         let payload: [String: String] = ["key": apiKey]
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         
+        DebugLogger.shared.log("Sende POST an \(url.absoluteString) (Timeout: 8s)...")
+        
         do {
             let (data, response) = try await urlSession.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
+                DebugLogger.shared.log("FEHLER: Ungültiger Antwort-Typ erhalten")
                 throw APIError.networkError("Ungültige Antwort vom Server")
             }
             
+            DebugLogger.shared.log("Statuscode: HTTP \(httpResponse.statusCode)")
+            let rawResponse = String(data: data, encoding: .utf8) ?? "<nicht dekodierbar>"
+            DebugLogger.shared.log("Antwort: \(rawResponse)")
+            
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                DebugLogger.shared.log("FEHLER: API-Key unautorisiert (HTTP \(httpResponse.statusCode))")
                 throw APIError.unauthorized
             }
             
+            if httpResponse.statusCode == 404 {
+                // Fallback attempt with GET /api/files
+                DebugLogger.shared.log("Endpoint /api/verify-key nicht gefunden (404). Versuche /api/files...")
+                return try await verifyFallbackFiles(base: base, apiKey: apiKey)
+            }
+            
             if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
-                let msg = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
-                throw APIError.serverError(httpResponse.statusCode, msg)
+                DebugLogger.shared.log("FEHLER: Serverfehler HTTP \(httpResponse.statusCode)")
+                throw APIError.serverError(httpResponse.statusCode, rawResponse)
             }
             
             let decoded = try JSONDecoder().decode(VerifyKeyResponse.self, from: data)
+            DebugLogger.shared.log("Schlüssel-Validierung: \(decoded.valid ? "Gültig" : "Ungültig")")
             return decoded.valid
         } catch let err as APIError {
             throw err
         } catch {
-            throw APIError.networkError(error.localizedDescription)
+            let nsErr = error as NSError
+            DebugLogger.shared.log("Netzwerkfehler (\(nsErr.domain) Code \(nsErr.code)): \(error.localizedDescription)")
+            
+            // Try fallback GET /api/files directly
+            DebugLogger.shared.log("Versuche alternativen Verbindungstest (/api/files)...")
+            do {
+                return try await verifyFallbackFiles(base: base, apiKey: apiKey)
+            } catch {
+                DebugLogger.shared.log("Auch Fallback fehlgeschlagen: \(error.localizedDescription)")
+                throw APIError.networkError(error.localizedDescription)
+            }
         }
+    }
+    
+    private func verifyFallbackFiles(base: String, apiKey: String) async throws -> Bool {
+        guard let url = URL(string: "\(base)/api/files") else { throw APIError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        if !apiKey.isEmpty {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let (data, response) = try await urlSession.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.networkError("Ungültige Antwort")
+        }
+        
+        DebugLogger.shared.log("Fallback /api/files Statuscode: HTTP \(httpResponse.statusCode)")
+        if httpResponse.statusCode == 200 {
+            DebugLogger.shared.log("Verbindung via /api/files erfolgreich hergestellt!")
+            return true
+        }
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw APIError.unauthorized
+        }
+        throw APIError.serverError(httpResponse.statusCode, String(data: data, encoding: .utf8) ?? "")
     }
     
     // MARK: - Fetch Files
@@ -116,6 +172,8 @@ public class APIService: ObservableObject {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
         
+        DebugLogger.shared.log("Lade Dateien von \(url.absoluteString)...")
+        
         do {
             let (data, response) = try await urlSession.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -132,12 +190,15 @@ public class APIService: ObservableObject {
             }
             
             let files = try JSONDecoder().decode([FileItem].self, from: data)
+            DebugLogger.shared.log("\(files.count) Einträge geladen")
             return files
         } catch let err as APIError {
             throw err
         } catch let decErr as DecodingError {
+            DebugLogger.shared.log("JSON Parsing-Fehler: \(decErr.localizedDescription)")
             throw APIError.decodingError("Fehler beim Parsen der Serverdaten: \(decErr.localizedDescription)")
         } catch {
+            DebugLogger.shared.log("Ladefehler: \(error.localizedDescription)")
             throw APIError.networkError(error.localizedDescription)
         }
     }
@@ -195,7 +256,6 @@ public class APIService: ObservableObject {
             throw APIError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500, "Download fehlgeschlagen")
         }
         
-        // Move to persistent temp file with proper filename
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("FluxCloudDownloads", isDirectory: true)
         if !fileManager.fileExists(atPath: tempDir.path) {

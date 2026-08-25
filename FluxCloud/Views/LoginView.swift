@@ -2,10 +2,12 @@ import SwiftUI
 
 public struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
+    @ObservedObject var debugLogger = DebugLogger.shared
     
     @State private var serverUrl: String = ""
     @State private var apiKey: String = ""
     @State private var isSecureApiKey: Bool = true
+    @State private var copiedLogsNotice: Bool = false
     
     public var body: some View {
         NavigationStack {
@@ -22,11 +24,11 @@ public struct LoginView: View {
                 .ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(spacing: 32) {
-                        Spacer().frame(height: 40)
+                    VStack(spacing: 24) {
+                        Spacer().frame(height: 20)
                         
                         // App Logo & Header
-                        VStack(spacing: 14) {
+                        VStack(spacing: 12) {
                             ZStack {
                                 Circle()
                                     .fill(
@@ -36,37 +38,35 @@ public struct LoginView: View {
                                             endPoint: .bottomTrailing
                                         )
                                     )
-                                    .frame(width: 88, height: 88)
-                                    .shadow(color: Color.cyan.opacity(0.35), radius: 18, x: 0, y: 8)
+                                    .frame(width: 76, height: 76)
+                                    .shadow(color: Color.cyan.opacity(0.35), radius: 16, x: 0, y: 6)
                                 
                                 Image(systemName: "cloud.fill")
                                     .resizable()
                                     .scaledToFit()
-                                    .frame(width: 46, height: 46)
+                                    .frame(width: 40, height: 40)
                                     .foregroundColor(.white)
                             }
                             
                             Text("FluxCloud")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                             
-                            Text("Nativer iOS Client für deine persönliche Cloud")
+                            Text("Nativer iOS Client")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 20)
                         }
                         
                         // Input Card
-                        VStack(spacing: 20) {
+                        VStack(spacing: 18) {
                             // Server URL Field
                             VStack(alignment: .leading, spacing: 8) {
                                 Label("Server Adresse", systemImage: "server.rack")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.gray)
                                 
                                 HStack {
-                                    TextField("http://192.168.1.100:3000 oder https://...", text: $serverUrl)
+                                    TextField("http://10.116.4.79:3033", text: $serverUrl)
                                         .textContentType(.URL)
                                         .keyboardType(.URL)
                                         .autocapitalization(.none)
@@ -80,7 +80,7 @@ public struct LoginView: View {
                                         }
                                     }
                                 }
-                                .padding()
+                                .padding(14)
                                 .background(Color.white.opacity(0.08))
                                 .cornerRadius(12)
                                 .overlay(
@@ -92,7 +92,7 @@ public struct LoginView: View {
                             // API Key Field
                             VStack(alignment: .leading, spacing: 8) {
                                 Label("API-Key", systemImage: "key.fill")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.gray)
                                 
                                 HStack {
@@ -113,7 +113,7 @@ public struct LoginView: View {
                                             .foregroundColor(.gray)
                                     }
                                 }
-                                .padding()
+                                .padding(14)
                                 .background(Color.white.opacity(0.08))
                                 .cornerRadius(12)
                                 .overlay(
@@ -148,6 +148,8 @@ public struct LoginView: View {
                                     if authManager.isLoading {
                                         ProgressView()
                                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        Text("Verbinde...")
+                                            .font(.headline)
                                     } else {
                                         Text("Verbinden & Anmelden")
                                             .font(.headline)
@@ -156,7 +158,7 @@ public struct LoginView: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 52)
+                                .frame(height: 50)
                                 .background(
                                     LinearGradient(
                                         colors: [Color.blue, Color.cyan],
@@ -165,22 +167,98 @@ public struct LoginView: View {
                                     )
                                 )
                                 .foregroundColor(.white)
-                                .cornerRadius(14)
-                                .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                                .cornerRadius(12)
+                                .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
                             }
                             .disabled(authManager.isLoading || serverUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .opacity(serverUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1.0)
                         }
-                        .padding(24)
-                        .background(Color(red: 0.12, green: 0.14, blue: 0.20).opacity(0.7))
-                        .cornerRadius(20)
+                        .padding(20)
+                        .background(Color(red: 0.12, green: 0.14, blue: 0.20).opacity(0.8))
+                        .cornerRadius(18)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20)
+                            RoundedRectangle(cornerRadius: 18)
                                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
                         )
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 16)
                         
-                        Spacer()
+                        // Live Debug Log Terminal Box
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Label("Live Verbindungs-Log", systemImage: "terminal.fill")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.gray)
+                                
+                                Spacer()
+                                
+                                if !debugLogger.logs.isEmpty {
+                                    Button(action: {
+                                        UIPasteboard.general.string = debugLogger.logs.joined(separator: "\n")
+                                        copiedLogsNotice = true
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                            copiedLogsNotice = false
+                                        }
+                                    }) {
+                                        Text(copiedLogsNotice ? "Kopiert!" : "Kopieren")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.white.opacity(0.12))
+                                            .foregroundColor(.cyan)
+                                            .cornerRadius(6)
+                                    }
+                                    
+                                    Button(action: {
+                                        debugLogger.clear()
+                                    }) {
+                                        Text("Leeren")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.white.opacity(0.12))
+                                            .foregroundColor(.gray)
+                                            .cornerRadius(6)
+                                    }
+                                }
+                            }
+                            
+                            ScrollViewReader { proxy in
+                                ScrollView {
+                                    LazyVStack(alignment: .leading, spacing: 4) {
+                                        if debugLogger.logs.isEmpty {
+                                            Text("Noch keine Verbindungsversuche. Drücke auf 'Verbinden', um die Logs live zu sehen.")
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundColor(.gray.opacity(0.7))
+                                                .padding(.vertical, 8)
+                                        } else {
+                                            ForEach(Array(debugLogger.logs.enumerated()), id: \.offset) { index, line in
+                                                Text(line)
+                                                    .font(.system(size: 11, design: .monospaced))
+                                                    .foregroundColor(logColor(for: line))
+                                                    .id(index)
+                                            }
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(10)
+                                }
+                                .frame(height: 160)
+                                .background(Color.black.opacity(0.75))
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                )
+                                .onChange(of: debugLogger.logs.count) { _ in
+                                    if !debugLogger.logs.isEmpty {
+                                        proxy.scrollTo(debugLogger.logs.count - 1, anchor: .bottom)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        
+                        Spacer().frame(height: 20)
                     }
                 }
             }
@@ -190,5 +268,18 @@ public struct LoginView: View {
                 apiKey = authManager.config.apiKey
             }
         }
+    }
+    
+    private func logColor(for line: String) -> Color {
+        if line.contains("FEHLER") || line.contains("fehlgeschlagen") {
+            return Color(red: 1.0, green: 0.4, blue: 0.4)
+        }
+        if line.contains("Statuscode: HTTP 200") || line.contains("erfolgreich") || line.contains("Gültig") {
+            return Color(red: 0.4, green: 1.0, blue: 0.5)
+        }
+        if line.contains("Sende") || line.contains("Starte") {
+            return Color(red: 0.4, green: 0.8, blue: 1.0)
+        }
+        return Color(red: 0.9, green: 0.9, blue: 0.9)
     }
 }

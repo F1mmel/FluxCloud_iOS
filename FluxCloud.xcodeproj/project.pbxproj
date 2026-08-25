@@ -17,6 +17,7 @@
 		AA1000082C1A000100000008 /* FileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000082C1A000100000008 /* FileDetailView.swift */; };
 		AA1000092C1A000100000009 /* AuthenticatedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2000092C1A000100000009 /* AuthenticatedAsyncImage.swift */; };
 		AA10000A2C1A00010000000A /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA20000A2C1A00010000000A /* ShareSheet.swift */; };
+		AA10000C2C1A00010000000C /* DebugLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA20000D2C1A00010000000D /* DebugLogger.swift */; };
 		AA10000B2C1A00010000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA20000B2C1A00010000000B /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -27,6 +28,7 @@
 		AA2000032C1A000100000003 /* ServerConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerConfig.swift; sourceTree = "<group>"; };
 		AA2000042C1A000100000004 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
 		AA2000052C1A000100000005 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		AA20000D2C1A00010000000D /* DebugLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogger.swift; sourceTree = "<group>"; };
 		AA2000062C1A000100000006 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		AA2000072C1A000100000007 /* FileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserView.swift; sourceTree = "<group>"; };
 		AA2000082C1A000100000008 /* FileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDetailView.swift; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 			children = (
 				AA2000042C1A000100000004 /* APIService.swift */,
 				AA2000052C1A000100000005 /* AuthManager.swift */,
+				AA20000D2C1A00010000000D /* DebugLogger.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -193,6 +196,7 @@
 				AA1000082C1A000100000008 /* FileDetailView.swift in Sources */,
 				AA1000092C1A000100000009 /* AuthenticatedAsyncImage.swift in Sources */,
 				AA10000A2C1A00010000000A /* ShareSheet.swift in Sources */,
+				AA10000C2C1A00010000000C /* DebugLogger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
