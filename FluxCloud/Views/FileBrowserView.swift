@@ -162,18 +162,6 @@ public struct FileBrowserView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            
-            // Full Screen In-App Media Viewer Overlay (Transparent - Files visible directly behind!)
-            if let mediaItem = selectedMediaItem {
-                ImageViewerView(item: mediaItem, onDismiss: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selectedMediaItem = nil
-                    }
-                })
-                .environmentObject(authManager)
-                .transition(.opacity)
-                .zIndex(200)
-            }
         }
         .navigationTitle(folderTitle)
         .navigationBarTitleDisplayMode(currentPath.isEmpty ? .large : .inline)
@@ -322,6 +310,14 @@ public struct FileBrowserView: View {
         .sheet(item: $selectedNonMediaItem) { item in
             FileDetailView(item: item)
                 .environmentObject(authManager)
+        }
+        // 100% Full-Screen Media Viewer (Transparent modal covering navigation bar, status bar, and search bar)
+        .fullScreenCover(item: $selectedMediaItem) { mediaItem in
+            ImageViewerView(item: mediaItem, onDismiss: {
+                selectedMediaItem = nil
+            })
+            .environmentObject(authManager)
+            .background(TransparentBackgroundView())
         }
         // Real-Time Live Sync Notification Listener
         .onReceive(NotificationCenter.default.publisher(for: .fluxCloudFilesDidChange)) { _ in

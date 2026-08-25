@@ -2,6 +2,37 @@ import SwiftUI
 import Photos
 import AVKit
 
+public struct TransparentBackgroundView: UIViewRepresentable {
+    public init() {}
+    
+    public func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        DispatchQueue.main.async {
+            view.superview?.superview?.backgroundColor = .clear
+            view.superview?.backgroundColor = .clear
+            if let parent = view.parentViewController {
+                parent.view.backgroundColor = .clear
+            }
+        }
+        return view
+    }
+    
+    public func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
+private extension UIView {
+    var parentViewController: UIViewController? {
+        var parentResponder: UIResponder? = self
+        while parentResponder != nil {
+            parentResponder = parentResponder?.next
+            if let viewController = parentResponder as? UIViewController {
+                return viewController
+            }
+        }
+        return nil
+    }
+}
+
 public struct ImageViewerView: View {
     public let item: FileItem
     public var onDismiss: (() -> Void)? = nil
@@ -34,7 +65,7 @@ public struct ImageViewerView: View {
         self.onDismiss = onDismiss
     }
     
-    // Background opacity fades to 0 as user drags down, revealing the file browser behind
+    // Background opacity fades to 0 as user drags down, revealing the underlying files
     private var backgroundOpacity: Double {
         if isDraggingToDismiss {
             let progress = Double(dragDismissOffset / 250.0)
@@ -45,11 +76,16 @@ public struct ImageViewerView: View {
     
     public var body: some View {
         ZStack {
+            // Transparent Root Hosting Layer
+            TransparentBackgroundView()
+                .ignoresSafeArea()
+            
+            // Dynamic Dimming Layer (fades on drag)
             Color.black
                 .opacity(backgroundOpacity)
                 .ignoresSafeArea()
             
-            // Media Content (Image or Video)
+            // Media Content (Image or Video) spanning entire screen
             GeometryReader { proxy in
                 ZStack {
                     if item.isVideo {
@@ -60,6 +96,7 @@ public struct ImageViewerView: View {
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
+            .ignoresSafeArea()
             
             // Top Floating Action Bar
             VStack {
@@ -103,11 +140,12 @@ public struct ImageViewerView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.top, 54) // Position cleanly below status bar
                 .opacity(isDraggingToDismiss ? max(0, 1.0 - (dragDismissOffset / 100.0)) : 1.0)
                 
                 Spacer()
             }
+            .ignoresSafeArea(edges: .top)
             
             // Success Toast
             if showToast, let msg = toastMessage {
@@ -131,6 +169,7 @@ public struct ImageViewerView: View {
                 }
             }
         }
+        .background(TransparentBackgroundView())
         .sheet(isPresented: $showShareSheet) {
             if let img = downloadedImage {
                 ShareSheet(activityItems: [img])
