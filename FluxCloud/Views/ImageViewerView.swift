@@ -12,6 +12,10 @@ public struct ImageViewerView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     
+    // Swipe Down to Dismiss state
+    @State private var dragDismissOffset: CGFloat = 0.0
+    @State private var isDraggingToDismiss: Bool = false
+    
     // Actions & UI state
     @State private var downloadedImage: UIImage? = nil
     @State private var isDownloading: Bool = false
@@ -25,20 +29,33 @@ public struct ImageViewerView: View {
         self.item = item
     }
     
+    // Background opacity fades as the user drags down
+    private var backgroundOpacity: Double {
+        if isDraggingToDismiss {
+            let progress = Double(dragDismissOffset / 350.0)
+            return max(0.2, 1.0 - progress)
+        }
+        return 1.0
+    }
+    
     public var body: some View {
         ZStack {
             Color.black
+                .opacity(backgroundOpacity)
                 .ignoresSafeArea()
             
-            // Image Content with Pinch & Pan
+            // Image Content with Pinch, Pan, and Swipe Down to Dismiss
             GeometryReader { proxy in
                 ZStack {
                     if let image = downloadedImage {
                         Image(uiImage: image)
                             .resizable()
                             .scaledToFit()
-                            .scaleEffect(scale)
-                            .offset(offset)
+                            .scaleEffect(isDraggingToDismiss ? max(0.8, 1.0 - (dragDismissOffset / 1200.0)) : scale)
+                            .offset(
+                                x: scale > 1.05 ? offset.width : 0,
+                                y: scale > 1.05 ? offset.height : dragDismissOffset
+                            )
                             .gesture(
                                 MagnificationGesture()
                                     .onChanged { value in
@@ -60,20 +77,37 @@ public struct ImageViewerView: View {
                             .simultaneousGesture(
                                 DragGesture()
                                     .onChanged { value in
-                                        if scale > 1.0 {
+                                        if scale > 1.05 {
+                                            // Panning zoomed image
                                             offset = CGSize(
                                                 width: lastOffset.width + value.translation.width,
                                                 height: lastOffset.height + value.translation.height
                                             )
+                                        } else {
+                                            // Swipe down to dismiss gesture
+                                            if value.translation.height > 0 {
+                                                isDraggingToDismiss = true
+                                                dragDismissOffset = value.translation.height
+                                            }
                                         }
                                     }
-                                    .onEnded { _ in
-                                        if scale > 1.0 {
+                                    .onEnded { value in
+                                        if scale > 1.05 {
                                             lastOffset = offset
                                         } else {
-                                            withAnimation(.spring()) {
-                                                offset = .zero
-                                                lastOffset = .zero
+                                            // Threshold for dismissing
+                                            if dragDismissOffset > 100 || value.predictedEndTranslation.height > 250 {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    dragDismissOffset = proxy.size.height
+                                                }
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                                    presentationMode.wrappedValue.dismiss()
+                                                }
+                                            } else {
+                                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                                    dragDismissOffset = 0
+                                                    isDraggingToDismiss = false
+                                                }
                                             }
                                         }
                                     }
@@ -118,7 +152,7 @@ public struct ImageViewerView: View {
                 .frame(width: proxy.size.width, height: proxy.size.height)
             }
             
-            // Top Action Bar
+            // Top Action Bar (Fades out when swiping down)
             VStack {
                 HStack(spacing: 16) {
                     // Dismiss Button
@@ -163,6 +197,7 @@ public struct ImageViewerView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
+                .opacity(isDraggingToDismiss ? max(0, 1.0 - (dragDismissOffset / 100.0)) : 1.0)
                 
                 Spacer()
             }
