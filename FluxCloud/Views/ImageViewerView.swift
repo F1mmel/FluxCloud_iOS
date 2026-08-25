@@ -4,6 +4,8 @@ import AVKit
 
 public struct ImageViewerView: View {
     public let item: FileItem
+    public var onDismiss: (() -> Void)? = nil
+    
     @EnvironmentObject var authManager: AuthManager
     @Environment(\.presentationMode) var presentationMode
     
@@ -27,15 +29,16 @@ public struct ImageViewerView: View {
     @State private var showToast: Bool = false
     @State private var errorMessage: String? = nil
     
-    public init(item: FileItem) {
+    public init(item: FileItem, onDismiss: (() -> Void)? = nil) {
         self.item = item
+        self.onDismiss = onDismiss
     }
     
-    // Background opacity fades as the user drags down
+    // Background opacity fades to 0 as user drags down, revealing the file browser behind
     private var backgroundOpacity: Double {
         if isDraggingToDismiss {
-            let progress = Double(dragDismissOffset / 350.0)
-            return max(0.2, 1.0 - progress)
+            let progress = Double(dragDismissOffset / 250.0)
+            return max(0.0, 1.0 - progress)
         }
         return 1.0
     }
@@ -63,8 +66,7 @@ public struct ImageViewerView: View {
                 HStack(spacing: 16) {
                     // Dismiss Button
                     Button(action: {
-                        player?.pause()
-                        presentationMode.wrappedValue.dismiss()
+                        dismissViewer()
                     }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .bold))
@@ -148,6 +150,15 @@ public struct ImageViewerView: View {
         }
     }
     
+    private func dismissViewer() {
+        player?.pause()
+        if let onDismiss = onDismiss {
+            onDismiss()
+        } else {
+            presentationMode.wrappedValue.dismiss()
+        }
+    }
+    
     // MARK: - Video Content View
     
     @ViewBuilder
@@ -192,13 +203,13 @@ public struct ImageViewerView: View {
                     }
                 }
                 .onEnded { value in
-                    if dragDismissOffset > 100 || value.predictedEndTranslation.height > 250 {
+                    if dragDismissOffset > 90 || value.predictedEndTranslation.height > 200 {
                         player?.pause()
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(.easeOut(duration: 0.18)) {
                             dragDismissOffset = proxy.size.height
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            presentationMode.wrappedValue.dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                            dismissViewer()
                         }
                     } else {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
@@ -264,12 +275,12 @@ public struct ImageViewerView: View {
                                     lastOffset = offset
                                 } else {
                                     // Threshold for dismissing
-                                    if dragDismissOffset > 100 || value.predictedEndTranslation.height > 250 {
-                                        withAnimation(.easeOut(duration: 0.2)) {
+                                    if dragDismissOffset > 90 || value.predictedEndTranslation.height > 200 {
+                                        withAnimation(.easeOut(duration: 0.18)) {
                                             dragDismissOffset = proxy.size.height
                                         }
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                            presentationMode.wrappedValue.dismiss()
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                                            dismissViewer()
                                         }
                                     } else {
                                         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {

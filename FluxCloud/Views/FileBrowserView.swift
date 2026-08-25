@@ -17,8 +17,9 @@ public struct FileBrowserView: View {
     @State private var selectedCategory: String = "all"
     @State private var isGridView: Bool = false
     
-    // Detail / Preview Sheet State
-    @State private var selectedFileForDetail: FileItem? = nil
+    // Detail / Preview State
+    @State private var selectedMediaItem: FileItem? = nil
+    @State private var selectedNonMediaItem: FileItem? = nil
     @State private var showLogoutAlert: Bool = false
     
     // Upload & Picker State
@@ -160,6 +161,18 @@ public struct FileBrowserView: View {
                     .padding(.bottom, isUploading ? 90 : 30)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+            }
+            
+            // Full Screen In-App Media Viewer Overlay (Transparent - Files visible directly behind!)
+            if let mediaItem = selectedMediaItem {
+                ImageViewerView(item: mediaItem, onDismiss: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selectedMediaItem = nil
+                    }
+                })
+                .environmentObject(authManager)
+                .transition(.opacity)
+                .zIndex(200)
             }
         }
         .navigationTitle(folderTitle)
@@ -305,8 +318,8 @@ public struct FileBrowserView: View {
         } message: {
             Text("Möchtest du dich wirklich von diesem FluxCloud-Server abmelden?")
         }
-        // Full Preview Sheet (FileDetailView / ImageViewerView)
-        .sheet(item: $selectedFileForDetail) { item in
+        // Detail Sheet for non-media files (PDF, Audio, ZIP, etc.)
+        .sheet(item: $selectedNonMediaItem) { item in
             FileDetailView(item: item)
                 .environmentObject(authManager)
         }
@@ -373,7 +386,7 @@ public struct FileBrowserView: View {
                 } else {
                     // Full row tap area including whitespace on the right
                     Button(action: {
-                        selectedFileForDetail = item
+                        openItemPreview(item)
                     }) {
                         FileRowView(item: item, serverUrl: authManager.config.serverUrl, apiKey: authManager.config.apiKey)
                     }
@@ -404,7 +417,7 @@ public struct FileBrowserView: View {
                     }
                 } else {
                     Button(action: {
-                        selectedFileForDetail = item
+                        openItemPreview(item)
                     }) {
                         FileGridItemView(item: item, serverUrl: authManager.config.serverUrl, apiKey: authManager.config.apiKey)
                     }
@@ -425,7 +438,7 @@ public struct FileBrowserView: View {
     @ViewBuilder
     private func itemContextMenu(for item: FileItem) -> some View {
         Button(action: {
-            selectedFileForDetail = item
+            openItemPreview(item)
         }) {
             Label(item.isDirectory ? "Öffnen" : "Vorschau", systemImage: item.isDirectory ? "folder" : "eye")
         }
@@ -548,6 +561,16 @@ public struct FileBrowserView: View {
     }
     
     // MARK: - Actions & Handlers
+    
+    private func openItemPreview(_ item: FileItem) {
+        if item.isImage || item.isVideo {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedMediaItem = item
+            }
+        } else {
+            selectedNonMediaItem = item
+        }
+    }
     
     private func loadFiles(isSilent: Bool = false) async {
         if !isSilent {
