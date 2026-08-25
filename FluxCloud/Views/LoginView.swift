@@ -77,7 +77,7 @@ public struct LoginView: View {
                                 HStack {
                                     ZStack(alignment: .leading) {
                                         if serverUrl.isEmpty {
-                                            Text("https://cloud.example.com")
+                                            Text(verbatim: "https://cloud.example.com")
                                                 .foregroundColor(Color.gray.opacity(0.65))
                                                 .font(.body)
                                         }
@@ -114,7 +114,7 @@ public struct LoginView: View {
                                 HStack {
                                     ZStack(alignment: .leading) {
                                         if apiKey.isEmpty {
-                                            Text("fc_...")
+                                            Text(verbatim: "fc_...")
                                                 .foregroundColor(Color.gray.opacity(0.65))
                                                 .font(.body)
                                         }
