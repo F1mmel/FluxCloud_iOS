@@ -1,0 +1,32 @@
+# Xcode
+.DS_Store
+*/build/
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-builder
+*.xcuserstate
+*.xcbkptlist
+*.xcuserstate
+
+# IPA and artifacts
+*.ipa
+Payload/
+*.xcarchive
+*.dSYM.zip
+*.dSYM
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
